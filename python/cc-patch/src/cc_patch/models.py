@@ -37,6 +37,7 @@ class FeatureSubstate:
     state: SubstateState
     detail_code: str | None = None
     essential: bool = True
+    receiver: str | None = None
 
 
 @dataclass(frozen=True)

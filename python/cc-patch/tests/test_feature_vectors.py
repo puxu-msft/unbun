@@ -113,6 +113,22 @@ def test_agent_model_audited_vectors_preserve_receiver_and_reject_unknown_enum()
     assert status.detail_codes == (expected["unknown-variant"]["code"],)
 
 
+def test_agent_model_replay_rejects_forged_receiver_swap():
+    clean = (
+        b"model:S.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"])"
+        + agent_model.DESCRIBE_SUFFIX
+        + b";model:E.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"])"
+        + agent_model.DESCRIBE_SUFFIX
+    )
+    observed = agent_model.FEATURE.observe_substates(clean)
+    assert [site.receiver for site in observed] == ["S", "E"]
+
+    swapped = bytearray(clean.replace(b"model:S.", b"model:X.").replace(b"model:E.", b"model:S.").replace(b"model:X.", b"model:E."))
+
+    with pytest.raises(ValueError, match="receiver mismatch: S"):
+        agent_model.FEATURE.replay_substates(swapped, observed, "patched")
+
+
 def test_agent_model_multiple_suffixes_and_manual_second_suffix_are_all_sites():
     inputs = load_vector("agent-model-input.json")
     data = inputs["multiple_suffixes"].encode("latin-1")

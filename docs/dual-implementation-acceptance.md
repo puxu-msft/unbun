@@ -27,7 +27,7 @@ Windows与macOS production写gate未开放：Windows缺真实runtime证据，mac
 | shared lock互斥/显式清理 | `faults.test.mjs`公开CLI；`store-assets.test.mjs`双向holder/cleaner | PASS |
 | transaction rollback/error severity | JS/Python transaction fault suites；write/reprobe最高severity；lock release不覆盖主体错误 | PASS |
 | JSON schema/error code/exit一致 | contract schemas、公开CLI differential与fault suites | PASS |
-| runtime行为与完整revert | `runtime-oracle.test.mjs`：两边patch后schema string + gpt子请求；revert all逐字节恢复并重现enum/no子请求 | PASS |
+| runtime行为与完整revert | `runtime-oracle.test.mjs`：两边patch后schema string + gpt子请求；revert all逐字节恢复并重现enum/no子请求 | PASS（前置：需**已认证** claude 会话与本机 clean fixture；缺 fixture 或未登录时该 gate 由测试内 precondition 探测**显式跳过并告警**，不静默假设已登录，见 review L2A-01） |
 | live真实binary只读 | `live-readonly.test.mjs`：2.1.217 hash/mtime/size/store tree前后不变 | PASS |
 | frozen golden独立 | `sha256sum --check contract/golden/SHA256SUMS` | PASS |
 | known-bad正样本 | `vector-integrity.test.mjs`继续执行归档的一代实现 | PASS |

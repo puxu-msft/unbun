@@ -54,14 +54,33 @@ def test_binary_probe_preserves_unreadable_binary_error_state():
     assert probe.features == {}
 
 
-def test_error_exit_catalog_exactly_matches_frozen_vector():
+def test_error_catalog_exactly_matches_complete_frozen_vector():
     vector_path = Path(__file__).parents[3] / "contract" / "vectors" / "error-codes-v1.json"
     vector = json.loads(vector_path.read_text(encoding="utf-8"))
+    expected = [
+        {"code": "store_version_unsupported", "exit_code": 1, "meaning": "The store protocol version is not supported."},
+        {"code": "target_identity_mismatch", "exit_code": 2, "meaning": "Target metadata does not match the canonical path identity."},
+        {"code": "target_locked", "exit_code": 1, "meaning": "Another writer holds the target lock."},
+        {"code": "baseline_not_found", "exit_code": 1, "meaning": "No matching baseline exists and one cannot be created."},
+        {"code": "channels_patched_no_baseline", "exit_code": 1, "meaning": "The irreversible channels feature is patched without a clean baseline."},
+        {"code": "unsupported_or_mixed_no_baseline", "exit_code": 1, "meaning": "A trusted baseline cannot be created from the incoming state."},
+        {"code": "version_probe_failed", "exit_code": 1, "meaning": "The embedded version cannot be extracted."},
+        {"code": "baseline_conflict", "exit_code": 2, "meaning": "A different baseline is already active for this target and version."},
+        {"code": "baseline_invalid", "exit_code": 2, "meaning": "The baseline manifest or content failed self-validation."},
+        {"code": "baseline_stale_build", "exit_code": 2, "meaning": "The current binary and baseline do not share the same build lineage."},
+        {"code": "snapshot_exists", "exit_code": 1, "meaning": "A snapshot already exists for this target, version, and slug."},
+        {"code": "snapshot_not_found", "exit_code": 1, "meaning": "The requested snapshot does not exist."},
+        {"code": "snapshot_ambiguous", "exit_code": 1, "meaning": "The snapshot slug exists across versions and cannot be selected implicitly."},
+        {"code": "snapshot_invalid", "exit_code": 2, "meaning": "The snapshot manifest or content failed validation."},
+        {"code": "concurrent_binary_change", "exit_code": 1, "meaning": "The binary changed during the transaction."},
+        {"code": "content_mismatch", "exit_code": 2, "meaning": "Written bytes or feature postconditions do not match the expected result."},
+        {"code": "rollback_failed", "exit_code": 2, "meaning": "The transaction entry bytes could not be restored after failure."},
+        {"code": "binary_in_use", "exit_code": 3, "meaning": "The binary is in use and cannot be atomically replaced."},
+        {"code": "codesign_failed", "exit_code": 3, "meaning": "macOS ad-hoc code signing failed."},
+    ]
 
-    assert vector["schema_version"] == 1
-    expected = {entry["code"]: entry["exit_code"] for entry in vector["errors"]}
-    assert len(expected) == 19
-    assert ERROR_EXIT_CODES == expected
+    assert vector == {"schema_version": 1, "errors": expected}
+    assert ERROR_EXIT_CODES == {entry["code"]: entry["exit_code"] for entry in expected}
 
 
 def test_snapshot_info_fields_and_frozen_contract():

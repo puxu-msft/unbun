@@ -64,6 +64,16 @@ def _locate_patched_sites(data: bytes) -> list[int]:
     return sites
 
 
+def _receiver_at(data: bytes, core_offset: int) -> str | None:
+    """Return the model receiver preceding a schema core, when the local form is valid."""
+    if core_offset == 0 or data[core_offset - 1] != ord("."):
+        return None
+    model_offset = data.rfind(b"model:", max(0, core_offset - 128), core_offset - 1)
+    if model_offset == -1:
+        return None
+    return data[model_offset + len(b"model:") : core_offset - 1].decode("latin-1")
+
+
 def _locate_unknown_sites(data: bytes) -> list[tuple[int, int]]:
     known_suffixes = set(_locate_clean_sites(data)) | set(_locate_patched_sites(data))
     sites: list[tuple[int, int]] = []
@@ -142,6 +152,7 @@ class AgentModelFeature:
                 length,
                 state,
                 code,
+                receiver=_receiver_at(data, site),
             )
             for index, (site, length, state, code) in enumerate(found)
         ]
@@ -194,6 +205,8 @@ class AgentModelFeature:
                 site.length,
                 site.state,
                 site.detail_code,
+                site.essential,
+                site.receiver,
             )
             for index, site in enumerate(substates)
         ]
@@ -214,6 +227,9 @@ class AgentModelFeature:
             current = bytes(data[substate.offset : substate.offset + substate.length])
             if current not in replacements.values():
                 raise ValueError(f"agent-model site mismatch: {substate.identity}")
+            receiver = _receiver_at(bytes(data), substate.offset)
+            if receiver != substate.receiver:
+                raise ValueError(f"receiver mismatch: {substate.receiver}")
             replacement = replacements[desired]
             if current != replacement:
                 data[substate.offset : substate.offset + substate.length] = replacement

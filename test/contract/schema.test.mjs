@@ -325,30 +325,32 @@ describe("contract vectors", () => {
   test("error catalog exactly freezes the v1 code, exit, and meaning", async () => {
     const catalog = await loadJson(path.join(VECTOR_DIR, "error-codes-v1.json"));
     expect(catalog.schema_version).toBe(1);
-    expect(catalog.errors).toHaveLength(19);
-    expect(catalog.errors.map(({ code }) => code)).toEqual([
-      "store_version_unsupported",
-      "target_identity_mismatch",
-      "target_locked",
-      "baseline_not_found",
-      "channels_patched_no_baseline",
-      "unsupported_or_mixed_no_baseline",
-      "version_probe_failed",
-      "baseline_conflict",
-      "baseline_invalid",
-      "baseline_stale_build",
-      "snapshot_exists",
-      "snapshot_not_found",
-      "snapshot_ambiguous",
-      "snapshot_invalid",
-      "concurrent_binary_change",
-      "content_mismatch",
-      "rollback_failed",
-      "binary_in_use",
-      "codesign_failed",
+    // Full freeze (L2B-03): pin every {code, exit_code, meaning} verbatim. Reordering,
+    // swapping an exit_code, or rewording a meaning must break this test. The previous
+    // version only asserted code order + exit_code in {1,2,3} + non-empty meaning, so an
+    // exit swap or a reworded meaning slipped through — a test that lied about "exactly
+    // freezes". Python mirrors this full deepEqual against the same file (see test_models.py).
+    expect(catalog.errors).toEqual([
+      { code: "store_version_unsupported", exit_code: 1, meaning: "The store protocol version is not supported." },
+      { code: "target_identity_mismatch", exit_code: 2, meaning: "Target metadata does not match the canonical path identity." },
+      { code: "target_locked", exit_code: 1, meaning: "Another writer holds the target lock." },
+      { code: "baseline_not_found", exit_code: 1, meaning: "No matching baseline exists and one cannot be created." },
+      { code: "channels_patched_no_baseline", exit_code: 1, meaning: "The irreversible channels feature is patched without a clean baseline." },
+      { code: "unsupported_or_mixed_no_baseline", exit_code: 1, meaning: "A trusted baseline cannot be created from the incoming state." },
+      { code: "version_probe_failed", exit_code: 1, meaning: "The embedded version cannot be extracted." },
+      { code: "baseline_conflict", exit_code: 2, meaning: "A different baseline is already active for this target and version." },
+      { code: "baseline_invalid", exit_code: 2, meaning: "The baseline manifest or content failed self-validation." },
+      { code: "baseline_stale_build", exit_code: 2, meaning: "The current binary and baseline do not share the same build lineage." },
+      { code: "snapshot_exists", exit_code: 1, meaning: "A snapshot already exists for this target, version, and slug." },
+      { code: "snapshot_not_found", exit_code: 1, meaning: "The requested snapshot does not exist." },
+      { code: "snapshot_ambiguous", exit_code: 1, meaning: "The snapshot slug exists across versions and cannot be selected implicitly." },
+      { code: "snapshot_invalid", exit_code: 2, meaning: "The snapshot manifest or content failed validation." },
+      { code: "concurrent_binary_change", exit_code: 1, meaning: "The binary changed during the transaction." },
+      { code: "content_mismatch", exit_code: 2, meaning: "Written bytes or feature postconditions do not match the expected result." },
+      { code: "rollback_failed", exit_code: 2, meaning: "The transaction entry bytes could not be restored after failure." },
+      { code: "binary_in_use", exit_code: 3, meaning: "The binary is in use and cannot be atomically replaced." },
+      { code: "codesign_failed", exit_code: 3, meaning: "macOS ad-hoc code signing failed." },
     ]);
-    expect(catalog.errors.every(({ exit_code }) => [1, 2, 3].includes(exit_code))).toBe(true);
-    expect(catalog.errors.every(({ meaning }) => typeof meaning === "string" && meaning.length > 0)).toBe(true);
   });
 
   test("canonical path vectors freeze POSIX and Windows edge cases", async () => {
