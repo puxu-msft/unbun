@@ -473,6 +473,42 @@ async def test_enter_directly_runs_selected_target_in_worker(monkeypatch, tmp_pa
     assert app.exit_code == 0
 
 
+async def test_write_success_refresh_failure_preserves_diagnostic(monkeypatch, tmp_path):
+    binary = tmp_path / "claude"
+    binary.write_bytes(b'fixture overview",VERSION:"2.1.175" tail')
+    calls = 0
+
+    def status_then_fail(_view):
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise RuntimeError("refresh probe exploded")
+        return _fake_quick_status(_view)
+
+    monkeypatch.setattr(tui_app.probe, "quick_status", status_then_fail)
+    monkeypatch.setattr(
+        tui_app.orchestrate,
+        "write_features",
+        lambda binary, target_features, **_kwargs: WriteOutcome(
+            binary, target_features, 1, False
+        ),
+    )
+
+    app = tui_app.CcPatchApp([binary])
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("space")
+        await pilot.press("enter")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        progress = str(app.query_one("#progress").content)
+
+    assert "state refresh failed" in progress
+    assert "RuntimeError: refresh probe exploded" in progress
+    assert len(app.outcomes) == 1
+    assert app.exit_code == 0
+
+
 async def test_enter_is_ignored_while_initial_probe_is_loading(monkeypatch, tmp_path):
     binary = tmp_path / "claude"
     binary.write_bytes(b'fixture overview",VERSION:"2.1.175" tail')

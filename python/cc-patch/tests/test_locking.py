@@ -87,6 +87,32 @@ def test_force_cleanup_refuses_recursive_deletion_of_unknown_content(tmp_path):
     assert (lock_path / "unexpected").read_text(encoding="utf-8") == "do not delete"
 
 
+def test_release_failure_does_not_replace_primary_body_error(tmp_path):
+    lock_path = tmp_path / "write.lock"
+    primary = StoreError("content_mismatch", 2, "primary transaction failure")
+
+    with pytest.raises(StoreError) as raised:
+        with DirectoryLock(lock_path, implementation="python", command="patch"):
+            (lock_path / "unexpected").write_text("keep", encoding="utf-8")
+            raise primary
+
+    assert raised.value is primary
+    assert raised.value.code == "content_mismatch"
+    notes = getattr(raised.value, "__notes__", [])
+    assert any("lock_cleanup_unsafe" in note for note in notes)
+    assert any("lock contains unknown entries" in note for note in notes)
+
+
+def test_release_failure_is_primary_when_body_succeeds(tmp_path):
+    lock_path = tmp_path / "write.lock"
+
+    with pytest.raises(StoreError) as raised:
+        with DirectoryLock(lock_path, implementation="python", command="patch"):
+            (lock_path / "unexpected").write_text("keep", encoding="utf-8")
+
+    assert raised.value.code == "lock_cleanup_unsafe"
+
+
 def test_owner_pid_liveness_is_diagnostic_only(tmp_path, monkeypatch):
     lock_path = tmp_path / "write.lock"
     lock = DirectoryLock(lock_path, implementation="python", command="patch")

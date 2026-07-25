@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import platform
 import stat
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
@@ -23,8 +24,9 @@ MACOS_EXECUTABLE_CHECK = lambda path: path.is_file() and bool(
 )
 
 
-def _contract_root() -> Path:
-    return Path(__file__).resolve().parents[4] / "contract"
+def _contract_root() -> Path | None:
+    candidate = Path(__file__).resolve().parents[4] / "contract"
+    return candidate if (candidate / "vectors/platform-writes-v1.json").is_file() else None
 
 
 def _current_platform_name() -> str:
@@ -89,12 +91,23 @@ class ConcurrentBinaryChange(StoreError):
         super().__init__("concurrent_binary_change", 1, message)
 
 
+@dataclass(frozen=True)
+class SnapshotRestoreConfirmation:
+    entry_sha256: str
+    current_version: str
+    snapshot_version: str
+    snapshot_slug: str
+    snapshot_sha256: str
+    snapshot_manifest_path: str
+
+
 class CrossVersionSnapshotWarning(RuntimeError):
-    def __init__(self, snapshot_version: str, current_version: str):
-        self.snapshot_version = snapshot_version
-        self.current_version = current_version
+    def __init__(self, confirmation: SnapshotRestoreConfirmation):
+        self.confirmation = confirmation
+        self.snapshot_version = confirmation.snapshot_version
+        self.current_version = confirmation.current_version
         super().__init__(
-            f"Snapshot version {snapshot_version} differs from current binary version {current_version}; confirmation required"
+            f"Snapshot version {self.snapshot_version} differs from current binary version {self.current_version}; confirmation required"
         )
 
 
@@ -443,8 +456,13 @@ def restore_snapshot(
     slug: str,
     *,
     snapshot_version: str | None = None,
+    confirmation: SnapshotRestoreConfirmation | None = None,
     confirmed: bool = False,
 ) -> WriteOutcome:
+    if confirmed and confirmation is None:
+        raise ValueError(
+            "cross-version confirmation requires a bound confirmation payload"
+        )
     _resolve_write_gate()
     store = _get_store()
     identity = store.identity_for(binary)
@@ -459,8 +477,20 @@ def restore_snapshot(
         restored_version = extract_version(restored)
         if restored_version is None:
             raise StoreError("snapshot_invalid", 2, "snapshot version probe failed")
-        if restored_version != current_version and not confirmed:
-            raise CrossVersionSnapshotWarning(restored_version, current_version)
+        requested_confirmation = SnapshotRestoreConfirmation(
+            entry_sha256=hashlib.sha256(entry_data).hexdigest(),
+            current_version=current_version,
+            snapshot_version=restored_version,
+            snapshot_slug=asset.manifest["slug"],
+            snapshot_sha256=asset.manifest["sha256"],
+            snapshot_manifest_path=str(asset.manifest_path),
+        )
+        if confirmation is not None and confirmation != requested_confirmation:
+            raise ConcurrentBinaryChange(
+                "Binary or snapshot changed after cross-version confirmation; retry"
+            )
+        if restored_version != current_version and confirmation is None:
+            raise CrossVersionSnapshotWarning(requested_confirmation)
         applied = _patched_features(_states(restored))
         effective = resolve_closure(applied)
         if restored == entry_data:

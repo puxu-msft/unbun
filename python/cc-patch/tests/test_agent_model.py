@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from cc_patch import features
+import pytest
+
+from cc_patch import features, orchestrate
 from cc_patch.features import agent_model
 from tests.conftest import make_bundle
 
@@ -49,6 +51,68 @@ def test_detect_clean_patched_unsupported_and_mixed():
     assert agent_model.FEATURE.detect(bytes(patched)).state == "patched"
     assert agent_model.FEATURE.detect(b"no model enum").state == "unsupported"
     assert agent_model.FEATURE.detect(mixed).state == "mixed"
+
+
+@pytest.mark.parametrize(
+    "unknown_core",
+    [b"union([1,2])", b'literal("future-model")'],
+)
+@pytest.mark.parametrize("unknown_first", [True, False])
+def test_unknown_schema_core_before_or_after_known_is_fail_closed(unknown_core, unknown_first):
+    known = b"model:S." + agent_model.ENUM_CORE + agent_model.DESCRIBE_SUFFIX
+    unknown = b"model:X." + unknown_core + agent_model.DESCRIBE_SUFFIX
+    data = b";".join((unknown, known) if unknown_first else (known, unknown))
+
+    status = agent_model.FEATURE.detect(data)
+
+    assert status.state == "unsupported"
+    assert status.detail_codes == (agent_model.UNKNOWN_VARIANT_CODE,)
+    assert [(site.state, site.receiver) for site in status.substates] == (
+        [("unsupported", "X"), ("clean", "S")]
+        if unknown_first
+        else [("clean", "S"), ("unsupported", "X")]
+    )
+    unchanged = bytearray(data)
+    with pytest.raises(ValueError, match=agent_model.UNKNOWN_VARIANT_CODE):
+        agent_model.FEATURE.apply(unchanged)
+    assert bytes(unchanged) == data
+
+
+def test_multiple_unknown_schemas_with_known_are_all_reported_and_baseline_rejected(make_bundle):
+    known = b"model:S." + agent_model.ENUM_CORE + agent_model.DESCRIBE_SUFFIX
+    unknown_union = b"model:X.union([1,2])" + agent_model.DESCRIBE_SUFFIX
+    unknown_literal = b'model:Y.literal("future")' + agent_model.DESCRIBE_SUFFIX
+    data = b";".join((unknown_union, known, unknown_literal))
+
+    status = agent_model.FEATURE.detect(data)
+
+    assert status.state == "unsupported"
+    assert [(site.state, site.receiver) for site in status.substates] == [
+        ("unsupported", "X"),
+        ("clean", "S"),
+        ("unsupported", "Y"),
+    ]
+
+    valid_bundle_with_unknown = bytes(make_bundle()) + b";" + unknown_literal
+    assert orchestrate.extract_version(valid_bundle_with_unknown) == "2.1.175"
+    assert agent_model.FEATURE.detect(valid_bundle_with_unknown).state == "unsupported"
+    with pytest.raises(orchestrate.NoBaselineRejected) as raised:
+        orchestrate._validate_clean_baseline(valid_bundle_with_unknown, "2.1.175")
+    assert raised.value.reason == orchestrate.NoBaselineReason.INVALID_BASELINE
+
+
+def test_reverse_mixed_vector_replays_complete_identity_vector():
+    clean = (
+        b"model:S." + agent_model.ENUM_CORE + agent_model.DESCRIBE_SUFFIX
+        + b";model:E." + agent_model.ENUM_CORE + agent_model.DESCRIBE_SUFFIX
+    )
+    mixed = bytearray(clean)
+    first = agent_model.FEATURE.observe_substates(bytes(mixed))[0]
+    mixed[first.offset : first.offset + first.length] = agent_model.REPLACE_CORE
+
+    assert agent_model.FEATURE.detect(bytes(mixed)).state == "mixed"
+    assert agent_model.FEATURE.reverse(mixed) == 1
+    assert bytes(mixed) == clean
 
 
 def test_reverse_apply_round_trip():

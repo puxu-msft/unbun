@@ -1,10 +1,16 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from cc_patch import orchestrate, snapshots
 from cc_patch.features import REGISTRY
-from cc_patch.lineage import LineageError, PlatformGate, assert_platform_write_enabled
+from cc_patch.lineage import (
+    LineageError,
+    PlatformGate,
+    assert_platform_write_enabled,
+    load_platform_gate,
+)
 from cc_patch.store import ContentInspection, StoreV1
 
 
@@ -57,6 +63,31 @@ def test_assert_platform_write_enabled_rejects_disabled_platforms(platform_name)
         assert_platform_write_enabled(CONTRACT_ROOT, platform_name)
 
     assert (raised.value.code, raised.value.exit_code) == ("platform_write_disabled", 1)
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [None, "enabled", [], True, {"unexpected": "value"}, {"status": ""}],
+)
+def test_malformed_production_gate_shapes_are_normalized(malformed, tmp_path):
+    contract_root = tmp_path / "contract"
+    vectors = contract_root / "vectors"
+    vectors.mkdir(parents=True)
+    payload = {
+        "lineage_algorithm": "claude-v1-exact-replay",
+        "platforms": {
+            "linux": {
+                "format": "elf",
+                "capabilities": {"production_write_gate": malformed},
+            }
+        },
+    }
+    (vectors / "platform-writes-v1.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(LineageError) as raised:
+        load_platform_gate(contract_root, "linux")
+
+    assert (raised.value.code, raised.value.exit_code) == ("platform_gate_invalid", 2)
 
 
 def test_assert_platform_write_enabled_rejects_unknown_platform():

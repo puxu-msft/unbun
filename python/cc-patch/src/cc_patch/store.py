@@ -30,6 +30,11 @@ class StoreError(RuntimeError):
         super().__init__(message)
 
 
+class StoreIntegrityError(StoreError):
+    def __init__(self, message: str):
+        super().__init__("store_integrity_error", 2, message)
+
+
 @dataclass(frozen=True)
 class TargetIdentity:
     canonical_path: str
@@ -151,7 +156,9 @@ def canonicalize_contract_path(
 ) -> str:
     if platform == "windows":
         normalized = value
-        if normalized.startswith("\\\\?\\"):
+        if normalized.startswith("\\\\?\\UNC\\"):
+            normalized = "\\\\" + normalized[len("\\\\?\\UNC\\") :]
+        elif normalized.startswith("\\\\?\\"):
             normalized = normalized[4:]
         normalized = normalized.replace("\\", "/")
         return unicodedata.normalize("NFC", _ascii_lower(normalized))
@@ -392,7 +399,21 @@ class StoreV1:
 
     def _publish_no_clobber(self, temp: Path, final: Path) -> None:
         os.link(temp, final)
-        self.durability.fsync_directory(final.parent)
+        try:
+            self.durability.fsync_directory(final.parent)
+        except OSError as publish_error:
+            try:
+                final.unlink()
+                self.durability.fsync_directory(final.parent)
+            except OSError as cleanup_error:
+                integrity_error = StoreIntegrityError(
+                    f"failed to remove incompletely published entry {final}: {cleanup_error}"
+                )
+                integrity_error.add_note(f"publish fsync failed first: {publish_error}")
+                raise integrity_error from cleanup_error
+            raise StoreIntegrityError(
+                f"directory fsync failed while publishing {final}: {publish_error}"
+            ) from publish_error
 
     def _publish_blob(self, final: Path, data: bytes) -> None:
         if final.exists():

@@ -1,6 +1,12 @@
 import ast
+import json
+import os
 import shlex
+import subprocess
+import sys
 import tomllib
+import venv
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -182,6 +188,56 @@ def test_pyproject_exposes_ccpatch_entrypoint() -> None:
         pyproject = tomllib.load(pyproject_file)
 
     assert pyproject["project"]["scripts"]["ccpatch"] == "cc_patch.cli:main_entry"
+
+
+def test_wheel_embeds_platform_matrix_and_fresh_install_can_patch_and_revert(
+    tmp_path: Path,
+    make_bundle,
+) -> None:
+    dist = tmp_path / "dist"
+    built = subprocess.run(
+        ["uv", "build", "--wheel", "--out-dir", str(dist), str(PROJECT_ROOT)],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert built.returncode == 0, built.stderr
+    wheel = next(dist.glob("cc_patch-*.whl"))
+    with zipfile.ZipFile(wheel) as archive:
+        names = archive.namelist()
+    assert "cc_patch/data/platform-writes-v1.json" in names
+
+    environment = tmp_path / "venv"
+    venv.EnvBuilder(with_pip=True).create(environment)
+    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    installed = subprocess.run(
+        [str(python), "-m", "pip", "install", "--no-deps", str(wheel)],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert installed.returncode == 0, installed.stderr
+
+    binary = tmp_path / "claude"
+    clean = bytes(make_bundle())
+    binary.write_bytes(clean)
+    store = tmp_path / "store"
+    env = {**os.environ, "UNBUN_CC_STORE": str(store)}
+    commands = [
+        [str(python), "-m", "cc_patch", "--binary", str(binary), "--json"],
+        [str(python), "-m", "cc_patch", "patch", "--binary", str(binary), "--feature", "agent-model", "--json"],
+        [str(python), "-m", "cc_patch", "revert", "--binary", str(binary), "--feature", "agent-model", "--json"],
+    ]
+    outputs = [
+        subprocess.run(command, text=True, capture_output=True, check=False, env=env)
+        for command in commands
+    ]
+
+    assert [result.returncode for result in outputs] == [0, 0, 0], [
+        result.stderr for result in outputs
+    ]
+    assert all(json.loads(result.stdout) is not None for result in outputs)
+    assert binary.read_bytes() == clean
 
 
 def test_python_package_does_not_depend_on_javascript_implementation() -> None:

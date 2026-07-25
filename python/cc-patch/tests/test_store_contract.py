@@ -10,6 +10,7 @@ from cc_patch.store import (
     ContentInspection,
     DurabilityAdapter,
     StoreError,
+    StoreIntegrityError,
     StoreV1,
     canonicalize_contract_path,
     compute_path_key,
@@ -43,6 +44,18 @@ class RecordingDurability(DurabilityAdapter):
 
     def fsync_directory(self, path: Path) -> None:
         self.directories.append(path)
+
+
+class FailingManifestDirectoryFsync(RecordingDurability):
+    def __init__(self):
+        super().__init__()
+        self.fail_next_manifest_publish = True
+
+    def fsync_directory(self, path: Path) -> None:
+        super().fsync_directory(path)
+        if self.fail_next_manifest_publish and (path / "baseline.json").exists():
+            self.fail_next_manifest_publish = False
+            raise OSError("injected manifest directory fsync failure")
 
 
 def _sha256(data: bytes) -> str:
@@ -141,6 +154,18 @@ def test_all_frozen_canonical_path_and_full_path_key_vectors(case):
     assert canonical == case["canonical_path"]
     assert compute_path_key(canonical) == case["path_key"]
     assert len(compute_path_key(canonical)) == 64
+
+
+def test_extended_unc_path_matches_javascript_canonicalization():
+    canonical = canonicalize_contract_path(
+        r"\\?\UNC\Server\Share\Claude.exe",
+        platform="windows",
+    )
+
+    assert canonical == "//server/share/claude.exe"
+    assert compute_path_key(canonical) == hashlib.sha256(
+        b"//server/share/claude.exe"
+    ).hexdigest()
 
 
 def test_real_target_identity_resolves_symlink_and_uses_nfc(tmp_path):
@@ -336,6 +361,27 @@ def test_baseline_content_addressed_blob_and_manifest_activation(tmp_path):
     assert any(path.parent == blob.parent and path.name.startswith(f".{blob.name}.tmp.") for path in durability.files)
     assert any(path.parent == active.parent and path.name.startswith(".baseline.json.tmp.") for path in durability.files)
     assert active.parent in durability.directories
+
+
+def test_failed_manifest_directory_fsync_removes_active_entry_and_retry_republishes(tmp_path):
+    key = "a" * 64
+    data = b"clean-baseline"
+    durability = FailingManifestDirectoryFsync()
+    store = StoreV1(tmp_path / "store", durability=durability)
+    manifest = _baseline_manifest(key, data)
+
+    with pytest.raises(StoreIntegrityError) as raised:
+        store.publish_baseline(key, "2.1.175", data, manifest)
+
+    assert raised.value.code == "store_integrity_error"
+    assert store.find_active_baseline(key, "2.1.175") is None
+    first_fsync_count = len(durability.directories)
+
+    active = store.publish_baseline(key, "2.1.175", data, manifest)
+
+    assert active.is_file()
+    assert store.read_active_baseline(key, "2.1.175").data == data
+    assert len(durability.directories) > first_fsync_count
 
 
 def test_baseline_no_clobber_is_idempotent_but_conflicting_manifest_is_rejected(tmp_path):

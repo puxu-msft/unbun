@@ -415,17 +415,17 @@ def _run_snapshot_restore(
     yes: bool,
     json_mode: bool,
 ) -> int:
-    warned = False
+    outcome: WriteOutcome | None = None
+    cli_error: CliError | None = None
+    exit_code = 0
     try:
         outcome = orchestrate.restore_snapshot(
             binary,
             slug,
             snapshot_version=snapshot_version,
-            confirmed=False,
         )
     except orchestrate.CrossVersionSnapshotWarning as warning:
         print(_snapshot_warning(warning), file=sys.stderr)
-        warned = True
         confirmed = yes
         if not confirmed and sys.stdin.isatty():
             try:
@@ -433,49 +433,49 @@ def _run_snapshot_restore(
             except EOFError:
                 confirmed = False
         if not confirmed:
-            print("Cross-version restore not confirmed; aborting. Use --yes to skip confirmation.", file=sys.stderr)
-            return 1
-        try:
-            outcome = orchestrate.restore_snapshot(
-                binary,
-                slug,
-                snapshot_version=snapshot_version,
-                confirmed=True,
-            )
-        except Exception as error:
-            error_code, message, _details = _translate_write_error(error)
-            code = ERROR_EXIT_CODES[error_code]
+            message = "Cross-version restore not confirmed; aborting. Use --yes to skip confirmation."
             print(message, file=sys.stderr)
-            return code
+            exit_code = 1
+            cli_error = CliError(
+                "snapshot_invalid",
+                message,
+                binary,
+                details={
+                    "current_version": warning.current_version,
+                    "snapshot_version": warning.snapshot_version,
+                    "confirmation_required": True,
+                },
+            )
+        else:
+            try:
+                outcome = orchestrate.restore_snapshot(
+                    binary,
+                    slug,
+                    snapshot_version=snapshot_version,
+                    confirmation=warning.confirmation,
+                )
+            except Exception as error:
+                error_code, message, details = _translate_write_error(error)
+                exit_code = ERROR_EXIT_CODES[error_code]
+                print(message, file=sys.stderr)
+                cli_error = CliError(error_code, message, binary, details=details)
     except Exception as error:
         error_code, message, details = _translate_write_error(error)
-        code = ERROR_EXIT_CODES[error_code]
+        exit_code = ERROR_EXIT_CODES[error_code]
         print(message, file=sys.stderr)
-        if json_mode:
-            print(
-                render_write_outcomes_json(
-                    action="snapshot-restore",
-                    exit_code=code,
-                    outcomes=[],
-                    errors=[CliError(error_code, message, binary, details=details)],
-                )
-            )
-        return code
-    if yes and not warned:
-        # Matching-version restores do not need a warning.
-        pass
+        cli_error = CliError(error_code, message, binary, details=details)
     if json_mode:
         print(
             render_write_outcomes_json(
                 action="snapshot-restore",
-                exit_code=0,
-                outcomes=[outcome],
-                errors=[],
+                exit_code=exit_code,
+                outcomes=[] if outcome is None else [outcome],
+                errors=[] if cli_error is None else [cli_error],
             )
         )
-    else:
+    elif outcome is not None:
         print(render_write_outcome(outcome, action="Restored snapshot"))
-    return 0
+    return exit_code
 
 
 def main(argv: list[str] | None = None) -> int:

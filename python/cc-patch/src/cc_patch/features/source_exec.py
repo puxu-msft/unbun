@@ -1,5 +1,6 @@
 from cc_patch.features import register
 from cc_patch.features.bytes_util import find_all
+from cc_patch.features.replay import validate_replay
 from cc_patch.models import FeatureStatus, FeatureSubstate, ProbeSlice
 
 
@@ -137,11 +138,20 @@ class SourceExecFeature:
             "clean": SOURCE_EXEC_CLEAN_SITE,
             "patched": SOURCE_EXEC_PATCHED_SITE,
         }
+        current_substates = self.observe_substates(bytes(data))
+        desired_substates = [
+            FeatureSubstate(
+                site.identity,
+                site.offset,
+                site.length,
+                target_state or site.state,
+            )
+            for site in substates
+        ]
+        validate_replay(current_substates, desired_substates)
         edits = 0
-        for substate in substates:
-            desired = target_state or substate.state
-            if desired not in replacements or substate.length != len(SOURCE_EXEC_CLEAN_SITE):
-                raise ValueError(f"unsupported source-exec substate: {substate.identity}")
+        for substate in desired_substates:
+            desired = substate.state
             current = bytes(data[substate.offset : substate.offset + substate.length])
             if current not in replacements.values():
                 raise ValueError(f"source-exec site mismatch: {substate.identity}")

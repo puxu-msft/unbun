@@ -575,6 +575,46 @@ def test_baseline_is_published_before_binary_exchange_failure(monkeypatch, binar
     assert path.read_bytes() == clean
 
 
+def test_baseline_manifest_directory_fsync_failure_leaves_no_active_and_retry_republishes(
+    monkeypatch, binary, shared_store
+):
+    path, clean = binary
+    identity = shared_store.identity_for(path)
+    real_fsync = shared_store.durability.fsync_directory
+    failed = False
+    binary_writes = []
+    real_commit = transaction.commit
+
+    def fail_once_on_manifest(directory):
+        nonlocal failed
+        if not failed and (directory / "baseline.json").exists():
+            failed = True
+            raise OSError("injected baseline manifest fsync failure")
+        return real_fsync(directory)
+
+    monkeypatch.setattr(shared_store.durability, "fsync_directory", fail_once_on_manifest)
+    monkeypatch.setattr(
+        transaction,
+        "commit",
+        lambda *args, **kwargs: binary_writes.append(True)
+        or real_commit(*args, **kwargs),
+    )
+
+    with pytest.raises(StoreError) as raised:
+        orchestrate.write_features(path, ["agent-model"], current_data=clean)
+
+    assert raised.value.code == "store_integrity_error"
+    assert shared_store.find_active_baseline(identity.path_key, "2.1.175") is None
+    assert binary_writes == []
+    assert path.read_bytes() == clean
+
+    outcome = orchestrate.write_features(path, ["agent-model"], current_data=clean)
+
+    assert outcome.applied == ["agent-model"]
+    assert shared_store.find_active_baseline(identity.path_key, "2.1.175") is not None
+    assert path.read_bytes() == replay(clean, ["agent-model"])
+
+
 def test_baseline_publish_failure_never_prepares_or_replaces_binary(
     monkeypatch, binary, shared_store
 ):
@@ -1003,9 +1043,32 @@ def test_confirmed_cross_version_snapshot_is_restored(binary, shared_store):
     old = clean.replace(b'VERSION:"2.1.175"', b'VERSION:"2.1.174"')
     snapshots.save_data(path, old, "2.1.174", "old", store=shared_store)
 
-    orchestrate.restore_snapshot(path, "old", confirmed=True)
+    with pytest.raises(orchestrate.CrossVersionSnapshotWarning) as warning:
+        orchestrate.restore_snapshot(path, "old")
+    orchestrate.restore_snapshot(path, "old", confirmation=warning.value.confirmation)
 
     assert path.read_bytes() == old
+
+
+def test_cross_version_confirmation_rejects_binary_replaced_between_calls(binary, shared_store):
+    path, clean = binary
+    old = clean.replace(b'VERSION:"2.1.175"', b'VERSION:"2.1.174"')
+    snapshots.save_data(path, old, "2.1.174", "old", store=shared_store)
+
+    with pytest.raises(orchestrate.CrossVersionSnapshotWarning) as warning:
+        orchestrate.restore_snapshot(path, "old")
+    replacement = replay(clean, ["agent-model"])
+    path.write_bytes(replacement)
+
+    with pytest.raises(orchestrate.ConcurrentBinaryChange) as raised:
+        orchestrate.restore_snapshot(
+            path,
+            "old",
+            confirmation=warning.value.confirmation,
+        )
+
+    assert raised.value.code == "concurrent_binary_change"
+    assert path.read_bytes() == replacement
 
 
 def test_restore_same_slug_prefers_current_version_and_allows_explicit_version(binary, shared_store):
@@ -1019,7 +1082,14 @@ def test_restore_same_slug_prefers_current_version_and_allows_explicit_version(b
     assert path.read_bytes() == current
 
     path.write_bytes(clean)
-    orchestrate.restore_snapshot(path, "same", snapshot_version="2.1.174", confirmed=True)
+    with pytest.raises(orchestrate.CrossVersionSnapshotWarning) as warning:
+        orchestrate.restore_snapshot(path, "same", snapshot_version="2.1.174")
+    orchestrate.restore_snapshot(
+        path,
+        "same",
+        snapshot_version="2.1.174",
+        confirmation=warning.value.confirmation,
+    )
     assert path.read_bytes() == old
 
 

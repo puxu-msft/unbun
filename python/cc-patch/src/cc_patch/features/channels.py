@@ -1,5 +1,6 @@
 from cc_patch.features import register
 from cc_patch.features.bytes_util import find_all, find_matching_brace
+from cc_patch.features.replay import validate_replay
 from cc_patch.models import FeatureStatus, FeatureSubstate, ProbeSlice
 
 
@@ -463,7 +464,7 @@ class ChannelsFeature:
                     substates.append(
                         FeatureSubstate(
                             f"channels:{kind}:absent",
-                            -1,
+                            base_offset + len(data),
                             0,
                             "absent",
                             ESSENTIAL_MISSING_CODE if essential else None,
@@ -521,8 +522,13 @@ class ChannelsFeature:
         return None
 
     def detect_windows(self, windows: list[ProbeSlice | bytes]) -> FeatureStatus:
+        normalized = _normalize_slices(windows)
+        observed_end = max(
+            (window.offset + len(window.data) for window in normalized),
+            default=0,
+        )
         present: dict[tuple[str, int, int], FeatureSubstate] = {}
-        for window in _normalize_slices(windows):
+        for window in normalized:
             for substate in self.observe_substates(window.data, window.offset):
                 kind = substate.identity.rsplit(":", 1)[0]
                 if substate.state == "absent":
@@ -546,7 +552,7 @@ class ChannelsFeature:
                     substates.append(
                         FeatureSubstate(
                             f"{kind}:absent",
-                            -1,
+                            observed_end,
                             0,
                             "absent",
                             ESSENTIAL_MISSING_CODE if essential else None,
@@ -577,21 +583,30 @@ class ChannelsFeature:
             raise ValueError(f"unsupported channels target state: {target_state}")
 
         current = self.observe_substates(bytes(data))
+        desired_substates = [
+            FeatureSubstate(
+                site.identity,
+                site.offset,
+                site.length,
+                target_state if target_state is not None and site.state != "absent" else site.state,
+                site.detail_code,
+                site.essential,
+            )
+            for site in substates
+        ]
+        replayable_current = [site for site in current if site.state != "absent"]
+        replayable_desired = [site for site in desired_substates if site.state != "absent"]
+        validate_replay(replayable_current, replayable_desired)
+        if len(replayable_desired) != len(desired_substates):
+            raise ValueError("substate_unreplayable: unknown state for absent channels site")
         current_by_identity = {site.identity: site for site in current}
-        target_by_identity = {site.identity: site for site in substates}
-        for identity, site in target_by_identity.items():
-            actual = current_by_identity.get(identity)
-            if actual is None or actual.offset != site.offset or actual.length != site.length:
-                raise ValueError(f"channels substate vector does not match baseline: {identity}")
-            if site.state == "absent" and actual.state != "absent":
-                raise ValueError(f"channels absent site mismatch: {identity}")
 
         decision_offsets: set[int] = set()
         byte_edits: list[tuple[int, bytes, bytes]] = []
-        for site in substates:
+        for site in desired_substates:
             if site.state == "absent":
                 continue
-            desired = target_state or site.state
+            desired = site.state
             actual = current_by_identity[site.identity]
             if site.identity.startswith("channels:decision:"):
                 if desired == "clean":

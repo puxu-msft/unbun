@@ -309,6 +309,52 @@ def test_snapshot_restore_runs_shared_transaction(make_bundle, tmp_path):
     assert binary.read_bytes() == clean
 
 
+def test_cross_version_snapshot_restore_json_always_emits_envelope(make_bundle, tmp_path):
+    binary = tmp_path / "claude"
+    current = bytes(make_bundle())
+    old = current.replace(b'VERSION:"2.1.175"', b'VERSION:"2.1.174"')
+    binary.write_bytes(old)
+    assert _run_ccpatch(
+        tmp_path, "snapshot", "save", "old", "--binary", str(binary)
+    ).returncode == 0
+    binary.write_bytes(current)
+
+    refused = _run_ccpatch(
+        tmp_path,
+        "revert",
+        "--snapshot",
+        "old",
+        "--binary",
+        str(binary),
+        "--json",
+    )
+
+    assert refused.returncode == 1
+    payload = json.loads(refused.stdout)
+    _validate(payload, "write-envelope.schema.json")
+    assert payload["errors"][0]["code"] == "snapshot_invalid"
+    assert payload["errors"][0]["details"] == {
+        "current_version": "2.1.175",
+        "snapshot_version": "2.1.174",
+        "confirmation_required": True,
+    }
+    assert binary.read_bytes() == current
+
+    restored = _run_ccpatch(
+        tmp_path,
+        "revert",
+        "--snapshot",
+        "old",
+        "--binary",
+        str(binary),
+        "--json",
+        "--yes",
+    )
+    assert restored.returncode == 0, restored.stderr
+    _validate(json.loads(restored.stdout), "write-envelope.schema.json")
+    assert binary.read_bytes() == old
+
+
 def test_dependency_error_names_only_actual_channels_dependant(make_bundle, tmp_path):
     binary = tmp_path / "claude"
     binary.write_bytes(bytes(make_bundle()))

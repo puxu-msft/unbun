@@ -1,5 +1,6 @@
 from cc_patch.features import register
 from cc_patch.features.bytes_util import find_all
+from cc_patch.features.replay import validate_replay
 from cc_patch.models import FeatureStatus, FeatureSubstate, ProbeSlice
 
 
@@ -74,15 +75,27 @@ def _receiver_at(data: bytes, core_offset: int) -> str | None:
     return data[model_offset + len(b"model:") : core_offset - 1].decode("latin-1")
 
 
-def _locate_unknown_sites(data: bytes) -> list[tuple[int, int]]:
-    known_suffixes = set(_locate_clean_sites(data)) | set(_locate_patched_sites(data))
-    sites: list[tuple[int, int]] = []
+def _locate_unknown_sites(data: bytes) -> list[tuple[int, int, str]]:
+    known_suffixes = {
+        site + len(ENUM_CORE) for site in _locate_clean_sites(data)
+    } | {
+        site + len(REPLACE_CORE) for site in _locate_patched_sites(data)
+    }
+    sites: list[tuple[int, int, str]] = []
     for suffix_off in find_all(data, DESCRIBE_SUFFIX):
-        if suffix_off - len(ENUM_CORE) in known_suffixes:
+        if suffix_off in known_suffixes:
             continue
-        start = data.rfind(b"enum([", max(0, suffix_off - UNKNOWN_LOOKBACK), suffix_off)
-        if start != -1 and data[start:suffix_off].endswith(b"])"):
-            sites.append((start, suffix_off - start))
+        model_off = data.rfind(
+            b"model:", max(0, suffix_off - UNKNOWN_LOOKBACK), suffix_off
+        )
+        if model_off == -1:
+            continue
+        dot_off = data.find(b".", model_off + len(b"model:"), suffix_off)
+        if dot_off == -1 or dot_off >= suffix_off - 1:
+            continue
+        core_off = dot_off + 1
+        receiver = data[model_off + len(b"model:") : dot_off].decode("latin-1")
+        sites.append((core_off, suffix_off - core_off, receiver))
     return sites
 
 
@@ -134,15 +147,18 @@ class AgentModelFeature:
     reversible = True
 
     def observe_substates(self, data: bytes, base_offset: int = 0) -> list[FeatureSubstate]:
-        found: list[tuple[int, int, str, str | None]] = []
-        found.extend((site, len(ENUM_CORE), "clean", None) for site in _locate_clean_sites(data))
+        found: list[tuple[int, int, str, str | None, str | None]] = []
         found.extend(
-            (site, len(REPLACE_CORE), "patched", None)
+            (site, len(ENUM_CORE), "clean", None, _receiver_at(data, site))
+            for site in _locate_clean_sites(data)
+        )
+        found.extend(
+            (site, len(REPLACE_CORE), "patched", None, _receiver_at(data, site))
             for site in _locate_patched_sites(data)
         )
         found.extend(
-            (site, length, "unsupported", UNKNOWN_VARIANT_CODE)
-            for site, length in _locate_unknown_sites(data)
+            (site, length, "unsupported", UNKNOWN_VARIANT_CODE, receiver)
+            for site, length, receiver in _locate_unknown_sites(data)
         )
         found.sort(key=lambda item: item[0])
         return [
@@ -152,9 +168,9 @@ class AgentModelFeature:
                 length,
                 state,
                 code,
-                receiver=_receiver_at(data, site),
+                receiver=receiver,
             )
-            for index, (site, length, state, code) in enumerate(found)
+            for index, (site, length, state, code, receiver) in enumerate(found)
         ]
 
     def detect(self, data: bytes) -> FeatureStatus:
@@ -219,16 +235,25 @@ class AgentModelFeature:
         target_state: str | None = None,
     ) -> int:
         replacements = {"clean": ENUM_CORE, "patched": REPLACE_CORE}
+        current_substates = self.observe_substates(bytes(data))
+        if any(site.state == "unsupported" for site in current_substates):
+            raise ValueError(f"{UNKNOWN_VARIANT_CODE}: baseline contains unaudited variant")
+        desired_substates = [
+            FeatureSubstate(
+                site.identity,
+                site.offset,
+                site.length,
+                target_state or site.state,
+                receiver=site.receiver,
+            )
+            for site in substates
+        ]
+        validate_replay(current_substates, desired_substates)
         edits = 0
-        for substate in substates:
-            desired = target_state or substate.state
-            if desired not in replacements or substate.length != len(ENUM_CORE):
-                raise ValueError(f"{UNKNOWN_VARIANT_CODE}: {substate.identity}")
+        for index, substate in enumerate(desired_substates):
+            desired = substate.state
             current = bytes(data[substate.offset : substate.offset + substate.length])
-            if current not in replacements.values():
-                raise ValueError(f"agent-model site mismatch: {substate.identity}")
-            receiver = _receiver_at(bytes(data), substate.offset)
-            if receiver != substate.receiver:
+            if substate.receiver != current_substates[index].receiver:
                 raise ValueError(f"receiver mismatch: {substate.receiver}")
             replacement = replacements[desired]
             if current != replacement:
@@ -259,7 +284,7 @@ class AgentModelFeature:
         if not patched:
             log("  no patch traces from this tool found")
             return 0
-        edits = self.replay_substates(data, patched, "clean")
+        edits = self.replay_substates(data, status.substates, "clean")
         for site in patched:
             log(f"  OK reverted model enum @{site.offset}")
         return edits

@@ -514,11 +514,20 @@ class CcPatchApp(App):
             )
         # 写盘完成后，在同一 worker 线程内只读重探，拿到刷新后的 feature 现实态，
         # 避免另起 worker 造成竞态；探测失败则回退旧行，不掀翻 App。
+        refresh_error: str | None = None
         try:
             rows = self._load_rows()
-        except Exception:  # noqa: BLE001 - 重探失败不应吞掉已完成的写盘结果。
+        except Exception as error:  # noqa: BLE001 - 重探失败不应掀翻已完成写盘，但必须保留诊断。
             rows = None
-        self.call_from_thread(self._finish_apply, outcomes, errors, exit_code, rows)
+            refresh_error = f"{type(error).__name__}: {error}"
+        self.call_from_thread(
+            self._finish_apply,
+            outcomes,
+            errors,
+            exit_code,
+            rows,
+            refresh_error,
+        )
 
     @staticmethod
     def _error_message(error: Exception) -> str:
@@ -586,6 +595,7 @@ class CcPatchApp(App):
         errors: list[str],
         exit_code: int,
         rows: list[FeatureRow] | None,
+        refresh_error: str | None = None,
     ) -> None:
         self._applying = False
         self.outcomes = outcomes
@@ -605,7 +615,8 @@ class CcPatchApp(App):
             self._rebuild_rows()
             summary += " | state refreshed, keep selecting to run more | esc quit"
         else:
-            summary += " | state refresh failed, restart the tool to re-check | esc quit"
+            diagnostic = f" ({refresh_error})" if refresh_error else ""
+            summary += f" | state refresh failed{diagnostic}, restart the tool to re-check | esc quit"
         self.query_one("#progress", Static).update(summary)
 
     def action_cancel(self) -> None:

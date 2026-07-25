@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -85,13 +86,9 @@ def test_source_exec_state_vectors_and_replay_all_sites():
     assert manual.count(source_exec.BUN_SOURCE_FALLBACK_MARKER) == 2
 
     clean = bytearray(b"// @bun @bytecode;second;// @bun @bytecode")
-    target = bytearray(clean)
-    second = source_exec.FEATURE.observe_substates(bytes(target))[1]
-    source_exec.FEATURE.replay_substates(target, [second], "patched")
-    vector = source_exec.FEATURE.observe_substates(bytes(target))
-    replay = bytearray(clean)
-    assert source_exec.FEATURE.replay_substates(replay, vector) == 1
-    assert replay == target
+    observed = source_exec.FEATURE.observe_substates(bytes(clean))
+    with pytest.raises(ValueError, match="site collection is incomplete"):
+        source_exec.FEATURE.replay_substates(clean, [observed[1]], "patched")
 
 
 def test_agent_model_audited_vectors_preserve_receiver_and_reject_unknown_enum():
@@ -142,13 +139,62 @@ def test_agent_model_multiple_suffixes_and_manual_second_suffix_are_all_sites():
     assert manual.count(agent_model.REPLACE_CORE) == 3
 
     clean = bytearray(data)
-    target = bytearray(clean)
-    second = agent_model.FEATURE.observe_substates(bytes(target))[1]
-    agent_model.FEATURE.replay_substates(target, [second], "patched")
-    vector = agent_model.FEATURE.observe_substates(bytes(target))
-    replay = bytearray(clean)
-    assert agent_model.FEATURE.replay_substates(replay, vector) == 1
-    assert replay == target
+    observed = agent_model.FEATURE.observe_substates(bytes(clean))
+    with pytest.raises(ValueError, match="site collection is incomplete"):
+        agent_model.FEATURE.replay_substates(clean, [observed[1]], "patched")
+
+
+@pytest.mark.parametrize("feature_name", ["source-exec", "agent-model", "channels"])
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda sites: [replace(sites[0], identity="forged"), *sites[1:]], "site identity mismatch"),
+        (lambda sites: [replace(sites[0], offset=sites[0].offset + 1), *sites[1:]], "site identity mismatch"),
+        (lambda sites: [sites[0], replace(sites[1], identity=sites[0].identity), *sites[2:]], "site identity mismatch"),
+        (lambda sites: [replace(sites[0], state="unsupported"), *sites[1:]], "unknown state"),
+    ],
+)
+def test_replay_rejects_forged_or_invalid_full_vector(feature_name, mutation, message):
+    fixtures = {
+        "source-exec": b"// @bun @bytecode;x;// @bun @bytecode",
+        "agent-model": (
+            b"model:S." + agent_model.ENUM_CORE + agent_model.DESCRIBE_SUFFIX
+            + b";model:E." + agent_model.ENUM_CORE + agent_model.DESCRIBE_SUFFIX
+        ),
+        "channels": build_channels_case(
+            load_vector("channels-input.json")["decision_clean"],
+            [
+                load_vector("channels-input.json")["support"]["essential_clean"],
+                load_vector("channels-input.json")["support"]["permissions_clean"],
+                load_vector("channels-input.json")["support"]["cap_strip_clean"],
+            ],
+        ),
+    }
+    feature = features.REGISTRY[feature_name]
+    data = bytearray(fixtures[feature_name])
+    observed = feature.observe_substates(bytes(data))
+    assert len(observed) >= 2
+
+    with pytest.raises(ValueError, match=message):
+        feature.replay_substates(data, mutation(observed))
+
+
+def test_channels_replay_rejects_incomplete_vector():
+    inputs = load_vector("channels-input.json")
+    data = bytearray(
+        build_channels_case(
+            inputs["decision_clean"],
+            [
+                inputs["support"]["essential_clean"],
+                inputs["support"]["permissions_clean"],
+                inputs["support"]["cap_strip_clean"],
+            ],
+        )
+    )
+    observed = channels.FEATURE.observe_substates(bytes(data))
+
+    with pytest.raises(ValueError, match="site collection is incomplete"):
+        channels.FEATURE.replay_substates(data, observed[1:])
 
 
 def build_channels_case(decision: str, support: list[str]) -> bytes:
@@ -205,6 +251,24 @@ def test_channels_essential_and_best_effort_vectors_have_structured_codes():
         ("channels:permissions:absent", "absent", False),
         ("channels:cap-strip:absent", "absent", False),
     ]
+    assert [site.offset for site in optional_absent.substates if site.state == "absent"] == [
+        len(build_channels_case(inputs["decision_clean"], [support["essential_clean"]]))
+    ] * 2
+
+
+def test_channels_replay_rejects_absent_observation_as_non_replayable_state():
+    inputs = load_vector("channels-input.json")
+    data = bytearray(
+        build_channels_case(
+            inputs["decision_clean"],
+            [inputs["support"]["essential_clean"]],
+        )
+    )
+    observed = channels.FEATURE.observe_substates(bytes(data))
+    assert any(site.state == "absent" for site in observed)
+
+    with pytest.raises(ValueError, match="site collection is incomplete|unknown state"):
+        channels.FEATURE.replay_substates(data, observed)
 
 
 def test_channels_replay_substates_rebuilds_mixed_target_exactly_from_clean():

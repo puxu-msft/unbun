@@ -92,7 +92,14 @@ class DirectoryLock:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
-        self.release()
+        if exc_value is None:
+            self.release()
+            return
+        try:
+            self.release()
+        except Exception as release_error:
+            code = getattr(release_error, "code", type(release_error).__name__)
+            exc_value.add_note(f"lock release failed [{code}]: {release_error}")
 
 
 def inspect_lock(path: Path) -> LockDiagnosis:
