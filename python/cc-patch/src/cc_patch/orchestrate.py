@@ -468,6 +468,11 @@ def restore_snapshot(
     identity = store.identity_for(binary)
     lock_path = store.target_dir(identity.path_key) / "write.lock"
     with DirectoryLock(lock_path, implementation="python", command="snapshot-restore"):
+        # L4-01：写入目标必须与身份键同源，都用 canonical（realpath）路径。否则在
+        # `bin/claude -> versions/<ver>` 布局下，os.replace 会把 symlink 本身换成普通文件、
+        # 真实二进制原封未动却报 success，且同一路径算出两个 path_key 使 baseline 不可达——
+        # 打上不可逆的 channels 后将永久无法回退。JS 侧已在 context.mjs 做同样处理。
+        binary = Path(identity.canonical_path)
         entry_data = binary.read_bytes()
         current_version = extract_version(entry_data)
         if current_version is None:
@@ -544,6 +549,11 @@ def write_features(
     identity = store.identity_for(binary)
     lock_path = store.target_dir(identity.path_key) / "write.lock"
     with DirectoryLock(lock_path, implementation="python", command="write-features"):
+        # L4-01：写入目标必须与身份键同源，都用 canonical（realpath）路径。否则在
+        # `bin/claude -> versions/<ver>` 布局下，os.replace 会把 symlink 本身换成普通文件、
+        # 真实二进制原封未动却报 success，且同一路径算出两个 path_key 使 baseline 不可达——
+        # 打上不可逆的 channels 后将永久无法回退。JS 侧已在 context.mjs 做同样处理。
+        binary = Path(identity.canonical_path)
         entry_data = binary.read_bytes()
         expected_digest = entry_digest
         if expected_digest is None and current_data is not None:

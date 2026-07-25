@@ -143,7 +143,9 @@ def probe_binary(path: Path) -> BinaryProbe:
     store = orchestrate._get_store()
     identity = store.identity_for(path)
     has_baseline = version is not None and store.find_active_baseline(identity.path_key, version) is not None
-    return BinaryProbe(path, version, statuses, size_bytes, has_baseline)
+    # L4-03：`status.path` 是公开契约字段，且会经 TUI 回流成写入目标，必须报**实际会被写入的对象**
+    # （canonical/realpath），与 JS `status.mjs` 对齐；报用户传入的 symlink 路径会与写入对象不一致。
+    return BinaryProbe(Path(identity.canonical_path), version, statuses, size_bytes, has_baseline)
 
 
 def _select_read_only_binaries(args: argparse.Namespace) -> list[Path] | None:

@@ -128,10 +128,31 @@ def test_select_single_binary_skips_prompt(monkeypatch):
     assert interactive.select_binaries(args(), interactive=True) == paths
 
 
-def test_select_noninteractive_processes_all(monkeypatch):
+def test_select_noninteractive_refuses_to_write_to_all_detected_binaries(monkeypatch):
+    """L4-05：非 TTY + 多目标 + mutating 子命令，必须拒绝而不是静默全选。
+
+    此前这里断言 `== paths`，把「defaulting to all」固化成了契约——那等于让一次
+    `ccpatch patch` 在自动化环境里静默改写检测到的每一个 live 二进制。JS 侧结构上
+    不存在这条路径（只解析单个 realpath），Python 侧必须显式拒绝。
+    """
     paths = bins(2)
     monkeypatch.setattr(interactive, "detect_binaries", lambda: paths)
-    assert interactive.select_binaries(args(), interactive=False) == paths
+    assert interactive.select_binaries(args(command="patch"), interactive=False) == []
+
+
+def test_select_noninteractive_still_reports_on_all_for_read_only(monkeypatch):
+    """反向对照：只读路径不受影响，仍可一次报告全部目标。"""
+    paths = bins(2)
+    monkeypatch.setattr(interactive, "detect_binaries", lambda: paths)
+    assert interactive.select_binaries(args(command=None), interactive=False) == paths
+    assert interactive.select_binaries(args(check=True), interactive=False) == paths
+
+
+def test_select_noninteractive_allows_explicit_all_for_writes(monkeypatch):
+    """显式 --all 是用户明确表达的批量意图，应放行。"""
+    paths = bins(2)
+    monkeypatch.setattr(interactive, "detect_binaries", lambda: paths)
+    assert interactive.select_binaries(args(command="patch", all=True), interactive=False) == paths
 
 
 def test_select_no_binaries_returns_none(monkeypatch):

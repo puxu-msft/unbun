@@ -105,8 +105,23 @@ def select_binaries(
     if args.all or args.profile or len(binaries) == 1:
         return binaries
     if not interactive:
+        # L4-05：非交互环境下检测到多个目标时，绝不能默认全选——若调用方带的是 mutating 子命令
+        # （patch / revert / snapshot restore），那等于静默批量改写多个 live 二进制。这条守卫在 JS
+        # 侧是结构性成立的（只解析单个 realpath），Python 侧此前只打印一行提示就 defaulting to all。
+        # 只读路径（--check / --profile / 无子命令）不受影响，仍可一次报告全部。
+        mutating = getattr(args, "command", None) in {"patch", "revert", "snapshot"} and not getattr(args, "check", False)
+        if mutating:
+            listed = "\n".join(f"  {binary}" for binary in binaries)
+            print(
+                f"Refusing to write to {len(binaries)} detected binaries without an explicit choice.\n"
+                f"{listed}\n"
+                "Re-run with --binary <path> to pick one, or --all to write to every one of them.",
+                file=sys.stderr,
+            )
+            return []
         print(
-            "Multiple binaries detected but not an interactive terminal; defaulting to all (use --binary or --all to be explicit).",
+            "Multiple binaries detected but not an interactive terminal; reporting on all of them "
+            "(use --binary or --all to be explicit).",
             file=sys.stderr,
         )
         return binaries
