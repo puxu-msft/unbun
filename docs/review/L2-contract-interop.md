@@ -20,6 +20,15 @@
 5. **双实现等价的证据链**：README 声称「公开 CLI 双向交替矩阵 + 共同 PTY 场景是发布 gate」——这些 gate 是否有可复现的测试落地，跑起来是否真绿。
 6. **known-bad vectors**：是否有对「应当拒绝」的负样本（如 channels 已 patched 且无 baseline 时拒绝猜造 clean bytes）的正向验证。
 
+## 主会话补充：干净 checkout 是唯一可信的「全绿」判据
+
+L2B-01（golden 未入库）暴露的模式在 L4 阶段**再次命中**，值得单独记录为教训：
+
+- 现象：本机 `bun test` 450 pass / 0 fail，但 `git archive HEAD` 出的干净副本跑出 **8 个失败**。
+- 根因：某次提交用了精确 pathspec（`lib/ test/`），**漏掉了仓库根的 `cli.mjs`**——91 行 fail-loud 修复只存在于工作树。
+- 教训：**「本机全绿」不能证明仓库正确**，它只证明「工作树 + 本机残留」的组合可用。用精确 pathspec 提交（这本身是共享工作树下的正确做法）时，尤其容易漏掉不在所列目录下的根文件。
+- 固化做法：每轮修复收尾时，从 `git archive HEAD` 解出干净副本、装依赖、跑双侧全量——这是唯一能同时抓住「文件没入库」与「文件没提交」的判据。本轮据此补提交 `29bb9e7`，之后干净副本连续两次 450/0、Python 449 pass、`sha256sum --check` 全 OK。
+
 ## 假绿模式检查清单（catching-false-green-tests）
 - [ ] 同源 roundtrip（encode↔decode 都用自己的实现，无独立 oracle）
 - [ ] 孤立微测跳过集成路径（primitive 单测绿但从未在端到端路径接线）
