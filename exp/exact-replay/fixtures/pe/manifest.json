@@ -1,0 +1,331 @@
+{
+  "schema": "unbun.exact-replay.pe-fixtures",
+  "schema_version": 1,
+  "feature_contract": "claude-v1",
+  "lineage_algorithm": "claude-v1-exact-replay",
+  "format": "pe",
+  "executable": false,
+  "arch": "x86_64",
+  "signature": "unsigned-synthetic",
+  "embedded_version": "2.1.175",
+  "normalization": "identity-v1",
+  "header_size": 512,
+  "payload_offset": 512,
+  "payload_size": 1031,
+  "raw_section_size": 1536,
+  "normalized_size": 2048,
+  "provenance": {
+    "source": "../manifest.json frozen synthetic replay corpus wrapped in a deterministic minimal PE32+ image",
+    "generation_command": "bun exp/exact-replay/fixtures/pe/generate-fixtures.mjs",
+    "audit_basis": "One x86_64 PE32+ image section contains each frozen synthetic vector unchanged; DOS, COFF, optional-header, section, alignment, size, and complete-file hashes are contract-tested.",
+    "license": "repository-generated test fixture",
+    "frozen_at": "2026-07-23"
+  },
+  "baseline": {
+    "path": "pe-2.1.175-clean.exe",
+    "size": 2048,
+    "sha256": "3699499cc545246d218f8b2fbb5cfa64eb35b3a7ba99d6fdb991454ed7a364b4"
+  },
+  "fixtures": {
+    "clean": {
+      "path": "pe-2.1.175-clean.exe",
+      "size": 2048,
+      "sha256": "3699499cc545246d218f8b2fbb5cfa64eb35b3a7ba99d6fdb991454ed7a364b4"
+    },
+    "target-source-exec": {
+      "path": "pe-2.1.175-target-source-exec.exe",
+      "size": 2048,
+      "sha256": "49fd66e2f0a7cd53da661fffe152cfcdcd4d301353a2c9b6bf6134078578a032"
+    },
+    "target-agent-model": {
+      "path": "pe-2.1.175-target-agent-model.exe",
+      "size": 2048,
+      "sha256": "9ec34de1bf67f562298fc1c8fb611ad06f474fd0c46362fd3e02e1818fa4436c"
+    },
+    "target-source-exec-agent-model": {
+      "path": "pe-2.1.175-target-source-exec-agent-model.exe",
+      "size": 2048,
+      "sha256": "47047926024253dd2adc805a28bb02910827f097255f4d4de0275163e6ddb64a"
+    },
+    "target-channels": {
+      "path": "pe-2.1.175-target-channels.exe",
+      "size": 2048,
+      "sha256": "8a353e858e9a949e70033418e68cfc3a25cd940b03483292ccdbcbc130e950d3"
+    },
+    "target-all": {
+      "path": "pe-2.1.175-target-all.exe",
+      "size": 2048,
+      "sha256": "c0f64020cae38ccfa704a24ae8f12d4e0a74d7f05d68b325dc044201320037e9"
+    },
+    "mixed-replayable": {
+      "path": "pe-2.1.175-mixed-replayable.exe",
+      "size": 2048,
+      "sha256": "01e99165539688e11c52c928fde5f94575c78165576029da955652f06d52702a"
+    },
+    "mixed-unreplayable": {
+      "path": "pe-2.1.175-mixed-unreplayable.exe",
+      "size": 2048,
+      "sha256": "7d09e9f2488ced1a732e73d323a36851ae4452455d5fe2480a5543a06fc8fa07"
+    }
+  },
+  "target_sets": [
+    {
+      "request_set": [],
+      "closed_set": [],
+      "fixture": "clean"
+    },
+    {
+      "request_set": [
+        "source-exec"
+      ],
+      "closed_set": [
+        "source-exec"
+      ],
+      "fixture": "target-source-exec"
+    },
+    {
+      "request_set": [
+        "agent-model"
+      ],
+      "closed_set": [
+        "agent-model"
+      ],
+      "fixture": "target-agent-model"
+    },
+    {
+      "request_set": [
+        "channels"
+      ],
+      "closed_set": [
+        "source-exec",
+        "channels"
+      ],
+      "fixture": "target-channels"
+    },
+    {
+      "request_set": [
+        "source-exec",
+        "agent-model"
+      ],
+      "closed_set": [
+        "source-exec",
+        "agent-model"
+      ],
+      "fixture": "target-source-exec-agent-model"
+    },
+    {
+      "request_set": [
+        "source-exec",
+        "channels"
+      ],
+      "closed_set": [
+        "source-exec",
+        "channels"
+      ],
+      "fixture": "target-channels"
+    },
+    {
+      "request_set": [
+        "agent-model",
+        "channels"
+      ],
+      "closed_set": [
+        "source-exec",
+        "agent-model",
+        "channels"
+      ],
+      "fixture": "target-all"
+    },
+    {
+      "request_set": [
+        "source-exec",
+        "agent-model",
+        "channels"
+      ],
+      "closed_set": [
+        "source-exec",
+        "agent-model",
+        "channels"
+      ],
+      "fixture": "target-all"
+    }
+  ],
+  "cases": {
+    "clean": {
+      "current_fixture": "clean",
+      "substates": {
+        "source-exec": "clean",
+        "agent-model": "clean",
+        "channels": "clean"
+      },
+      "current_sha256": "3699499cc545246d218f8b2fbb5cfa64eb35b3a7ba99d6fdb991454ed7a364b4",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "3699499cc545246d218f8b2fbb5cfa64eb35b3a7ba99d6fdb991454ed7a364b4",
+        "byte_equal": true,
+        "error": null
+      }
+    },
+    "target-source-exec": {
+      "current_fixture": "target-source-exec",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "clean",
+        "channels": "clean"
+      },
+      "current_sha256": "49fd66e2f0a7cd53da661fffe152cfcdcd4d301353a2c9b6bf6134078578a032",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "49fd66e2f0a7cd53da661fffe152cfcdcd4d301353a2c9b6bf6134078578a032",
+        "byte_equal": true,
+        "error": null
+      }
+    },
+    "target-agent-model": {
+      "current_fixture": "target-agent-model",
+      "substates": {
+        "source-exec": "clean",
+        "agent-model": "patched",
+        "channels": "clean"
+      },
+      "current_sha256": "9ec34de1bf67f562298fc1c8fb611ad06f474fd0c46362fd3e02e1818fa4436c",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "9ec34de1bf67f562298fc1c8fb611ad06f474fd0c46362fd3e02e1818fa4436c",
+        "byte_equal": true,
+        "error": null
+      }
+    },
+    "target-source-exec-agent-model": {
+      "current_fixture": "target-source-exec-agent-model",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "patched",
+        "channels": "clean"
+      },
+      "current_sha256": "47047926024253dd2adc805a28bb02910827f097255f4d4de0275163e6ddb64a",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "47047926024253dd2adc805a28bb02910827f097255f4d4de0275163e6ddb64a",
+        "byte_equal": true,
+        "error": null
+      }
+    },
+    "target-channels": {
+      "current_fixture": "target-channels",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "clean",
+        "channels": "patched"
+      },
+      "current_sha256": "8a353e858e9a949e70033418e68cfc3a25cd940b03483292ccdbcbc130e950d3",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "8a353e858e9a949e70033418e68cfc3a25cd940b03483292ccdbcbc130e950d3",
+        "byte_equal": true,
+        "error": null
+      }
+    },
+    "target-all": {
+      "current_fixture": "target-all",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "patched",
+        "channels": "patched"
+      },
+      "current_sha256": "c0f64020cae38ccfa704a24ae8f12d4e0a74d7f05d68b325dc044201320037e9",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "c0f64020cae38ccfa704a24ae8f12d4e0a74d7f05d68b325dc044201320037e9",
+        "byte_equal": true,
+        "error": null
+      }
+    },
+    "mixed-replayable": {
+      "current_fixture": "mixed-replayable",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "clean",
+        "channels": {
+          "decision": "patched",
+          "feature_flag": "clean",
+          "permissions": "patched",
+          "cap_strip": "clean"
+        }
+      },
+      "complete": true,
+      "current_sha256": "01e99165539688e11c52c928fde5f94575c78165576029da955652f06d52702a",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "01e99165539688e11c52c928fde5f94575c78165576029da955652f06d52702a",
+        "byte_equal": true,
+        "error": null
+      }
+    },
+    "mixed-unreplayable": {
+      "current_fixture": "mixed-unreplayable",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "unknown-bytes",
+        "channels": {
+          "decision": "patched",
+          "feature_flag": "clean",
+          "permissions": "patched",
+          "cap_strip": "clean"
+        }
+      },
+      "complete": false,
+      "current_sha256": "7d09e9f2488ced1a732e73d323a36851ae4452455d5fe2480a5543a06fc8fa07",
+      "expected": {
+        "supported": false,
+        "expected_sha256": null,
+        "byte_equal": false,
+        "error": "substate_unreplayable"
+      }
+    },
+    "same-version-different-build": {
+      "base_fixture": "clean",
+      "embedded_version": "2.1.175",
+      "substates": {
+        "source-exec": "clean",
+        "agent-model": "clean",
+        "channels": "clean"
+      },
+      "mutation": {
+        "offset": 542,
+        "clean_byte": 99,
+        "byte": 120,
+        "ownership": "non-feature"
+      },
+      "current_sha256": "bb3f0f6ae59b6fa703507c57d9cf948d583a1a42ccbb160d18338eba4ee47025",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "3699499cc545246d218f8b2fbb5cfa64eb35b3a7ba99d6fdb991454ed7a364b4",
+        "byte_equal": false,
+        "error": "baseline_stale_build"
+      }
+    },
+    "feature-owned-clean-drift": {
+      "base_fixture": "clean",
+      "embedded_version": "2.1.175",
+      "substates": {
+        "source-exec": "clean",
+        "agent-model": "clean",
+        "channels": "clean"
+      },
+      "mutation": {
+        "offset": 1112,
+        "clean_byte": 97,
+        "byte": 120,
+        "ownership": "channels-decision"
+      },
+      "current_sha256": "45e21047a1b0ecf1fec28474d935c64df6653d68be8617ee1929c9d3b7aa65a0",
+      "expected": {
+        "supported": true,
+        "expected_sha256": "3699499cc545246d218f8b2fbb5cfa64eb35b3a7ba99d6fdb991454ed7a364b4",
+        "byte_equal": false,
+        "error": "baseline_stale_build"
+      }
+    }
+  }
+}

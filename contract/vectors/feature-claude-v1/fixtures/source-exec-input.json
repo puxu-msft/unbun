@@ -1,0 +1,48 @@
+{
+  "format": "virtual-binary-v1",
+  "discovery_head_bytes": 32000000,
+  "discovery_tail_bytes": 32000000,
+  "window_radius": 8000,
+  "cases": [
+    {
+      "id": "first-tail-multi-tag",
+      "size": 80000000,
+      "segments": [
+        { "offset": 32, "ascii": "// @bun @bytecode" },
+        { "offset": 79999000, "ascii": "// @bun @bytecode" }
+      ],
+      "expected_state": "clean",
+      "expected_sites": 2
+    },
+    {
+      "id": "32mb-boundary",
+      "size": 70000000,
+      "segments": [
+        { "offset": 31999981, "ascii": "// @bun @bytecode" },
+        { "offset": 38000001, "ascii": "// @bun @bytecode" }
+      ],
+      "expected_state": "clean",
+      "expected_sites": 2,
+      "requires_full_detect_fallback_if_candidate_is_partial": true
+    },
+    {
+      "id": "overlapping-windows",
+      "size": 40000000,
+      "segments": [
+        { "offset": 19999990, "ascii": "// @bun @bytecode" }
+      ],
+      "expected_state": "clean",
+      "expected_sites": 1,
+      "merged_discovery_ranges": [[0, 40000000]]
+    },
+    {
+      "id": "states",
+      "inputs": {
+        "clean": ["// @bun @bytecode", "// @bun @bytecode"],
+        "patched": ["// @bun @source__", "// @bun @source__"],
+        "mixed": ["// @bun @bytecode", "// @bun @source__"],
+        "unsupported": ["// not-a-bun-tag"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "unbun.cc.vectors.store-v1",
+  "schema_version": 1,
+  "feature_contract": "claude-v1",
+  "provenance": {
+    "source": "shared-store-format.md sections 2-13 and dual-implementation-plan.md Task 0.3",
+    "audit_basis": "Cases are manually transcribed from the normative activation, validation, lock, and snapshot rules.",
+    "frozen_at": "2026-07-23"
+  },
+  "vectors": [
+    {
+      "id": "store-validation-matrix",
+      "source": {
+        "description": "Compact structured matrix for valid manifests, corrupt assets, crash residue, locks, and snapshot activation.",
+        "audit_basis": "Expected codes and exits are checked against shared-store-format.md section 12."
+      },
+      "input_state": "store",
+      "expected_substates": {
+        "manifest": ["valid", "missing-field", "wrong-type", "higher-version", "path-traversal"],
+        "content": ["hash-mismatch", "size-mismatch", "version-mismatch", "state-mismatch"],
+        "activation": ["orphan-blob", "manifest-only", "temp-only", "force"],
+        "lock": ["contended", "stale-unknown-owner"],
+        "snapshot": ["ambiguous", "force-activation"]
+      },
+      "expected_output_sha256": "19c9482b56c2a77dd2cb6c6d7b0ec1f563a78ae7fd21b90bc5c86aa42c31d53d",
+      "expected_code": "baseline_invalid",
+      "expected_exit": 2,
+      "coverage": [
+        "store:valid-manifests",
+        "store:missing-field",
+        "store:wrong-type",
+        "store:higher-version",
+        "store:path-traversal",
+        "store:hash-mismatch",
+        "store:size-mismatch",
+        "store:version-mismatch",
+        "store:state-mismatch",
+        "store:orphan-blob",
+        "store:manifest-only",
+        "store:temp-only",
+        "store:lock-contention",
+        "store:stale-lock-unknown-owner",
+        "store:snapshot-ambiguity",
+        "store:force-activation"
+      ],
+      "files": [
+        { "path": "fixtures/store-cases.json", "size": 1638, "sha256": "b60d927ae6790b166ba369b11bb6eb89f904271d7dd44a8038ff4d45ab798015" },
+        { "path": "fixtures/store-expected.json", "size": 1252, "sha256": "19c9482b56c2a77dd2cb6c6d7b0ec1f563a78ae7fd21b90bc5c86aa42c31d53d" }
+      ]
+    }
+  ]
+}

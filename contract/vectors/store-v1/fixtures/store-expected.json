@@ -1,0 +1,18 @@
+{
+  "valid_manifests": { "accepted": true },
+  "missing_field": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "wrong_type": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "higher_version": { "accepted": false, "code": "store_version_unsupported", "exit": 1 },
+  "path_traversal": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "hash_mismatch": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "size_mismatch": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "version_mismatch": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "state_mismatch": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "orphan_blob": { "active": false, "ignored": true },
+  "manifest_only": { "accepted": false, "code": "baseline_invalid", "exit": 2 },
+  "temp_only": { "active": false, "ignored": true },
+  "lock_contention": { "accepted": false, "code": "target_locked", "exit": 1 },
+  "stale_lock_unknown_owner": { "locked": true, "requires_explicit_force": true },
+  "snapshot_ambiguity": { "accepted": false, "code": "snapshot_ambiguous", "exit": 1 },
+  "force_activation": { "visible_state": "old-or-new-valid-manifest", "partial_manifest_visible": false }
+}

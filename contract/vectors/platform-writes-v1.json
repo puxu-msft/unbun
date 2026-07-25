@@ -1,0 +1,183 @@
+{
+  "schema": "unbun.cc.platform-writes",
+  "schema_version": 1,
+  "feature_contract": "claude-v1",
+  "lineage_algorithm": "claude-v1-exact-replay",
+  "frozen_at": "2026-07-25",
+  "aggregation_rule": {
+    "production_write_gate": "enabled only when format_exact_replay=proven, shared_store_transaction=proven, runtime_execution_oracle=proven, source_exec_dependency_evidence=resolved, and a production write implementation exists",
+    "fail_closed": true
+  },
+  "platforms": {
+    "linux": {
+      "format": "elf",
+      "capabilities": {
+        "format_exact_replay": {
+          "status": "proven",
+          "scope": "synthetic-elf-like",
+          "implementations": [
+            "js",
+            "python"
+          ],
+          "full_byte_cross_verification": true,
+          "evidence": [
+            "exp/exact-replay/fixtures/manifest.json",
+            "test/contract/exact-replay-harness.test.mjs"
+          ]
+        },
+        "shared_store_transaction": {
+          "status": "proven",
+          "production_implementation": "implemented",
+          "implementations": [
+            "js",
+            "python"
+          ],
+          "evidence": [
+            "docs/shared-store-format.md",
+            "contract/vectors/store-v1/manifest.json",
+            "test/interop/alternating-cli.test.mjs",
+            "test/interop/baseline-replay.test.mjs",
+            "test/interop/store-assets.test.mjs",
+            "test/interop/faults.test.mjs"
+          ]
+        },
+        "runtime_execution_oracle": {
+          "status": "proven",
+          "ordinary_bun_source_exec_necessity": "not-proven",
+          "agent_model_claude_temporary_copy": "proven",
+          "evidence": [
+            "test/contract/exact-replay-elf.test.mjs",
+            "test/interop/runtime-oracle.test.mjs",
+            "exp/agent-model-runtime/test_runtime_probe.py"
+          ]
+        },
+        "source_exec_dependency_evidence": {
+          "status": "resolved",
+          "agent_model_dependency": "refuted",
+          "channels_dependency": "contract-preserved-runtime-not-independently-proven",
+          "evidence": [
+            "docs/source-exec-runtime-findings.md",
+            "exp/agent-model-runtime/runtime_probe.py",
+            "contract/vectors/feature-claude-v1/fixtures/dependency-expected.json"
+          ]
+        },
+        "production_write_gate": {
+          "status": "enabled",
+          "implementation": "implemented",
+          "scope": "temporary-copy-and-clean-baseline-only"
+        }
+      }
+    },
+    "windows": {
+      "format": "pe",
+      "capabilities": {
+        "format_exact_replay": {
+          "status": "proven",
+          "scope": "synthetic-pe32-plus",
+          "structure_gate": "enabled",
+          "implementations": [
+            "js",
+            "python"
+          ],
+          "full_byte_cross_verification": true,
+          "evidence": [
+            "exp/exact-replay/fixtures/pe/manifest.json",
+            "exp/exact-replay/fixtures/pe/platform-gate.json",
+            "test/contract/exact-replay-pe.test.mjs"
+          ]
+        },
+        "shared_store_transaction": {
+          "status": "implemented-platform-runtime-not-verified",
+          "production_implementation": "implemented",
+          "implementations": [
+            "js",
+            "python"
+          ],
+          "evidence": [
+            "docs/shared-store-format.md",
+            "contract/vectors/store-v1/manifest.json",
+            "test/contract/vector-integrity.test.mjs"
+          ]
+        },
+        "runtime_execution_oracle": {
+          "status": "not-verified",
+          "real_windows_runtime": "not-run",
+          "reason": "windows-runtime-unavailable"
+        },
+        "source_exec_dependency_evidence": {
+          "status": "partial",
+          "agent_model_dependency": "refuted-on-linux-claude",
+          "channels_dependency": "not-proven",
+          "platform_specific_runtime": "not-verified"
+        },
+        "production_write_gate": {
+          "status": "disabled-pending-runtime",
+          "implementation": "implemented-unverified-platform",
+          "reason": "real-windows-runtime-not-verified"
+        }
+      }
+    },
+    "macos": {
+      "format": "macho",
+      "capabilities": {
+        "format_exact_replay": {
+          "status": "partial",
+          "scope": "thin-macho-signature-normalization",
+          "parser": "proven",
+          "synthetic_signature_normalization": "proven",
+          "real_codesign_equivalence": "not-proven",
+          "implementations": [
+            "js",
+            "python"
+          ],
+          "evidence": [
+            "exp/exact-replay/fixtures/macho/manifest.json",
+            "exp/exact-replay/fixtures/macho/platform-gate.json",
+            "test/contract/exact-replay-macho.test.mjs"
+          ]
+        },
+        "shared_store_transaction": {
+          "status": "implemented-platform-runtime-not-verified",
+          "production_implementation": "implemented",
+          "implementations": [
+            "js",
+            "python"
+          ],
+          "evidence": [
+            "docs/shared-store-format.md",
+            "contract/vectors/store-v1/manifest.json",
+            "test/contract/vector-integrity.test.mjs"
+          ]
+        },
+        "runtime_execution_oracle": {
+          "status": "not-verified",
+          "real_macos_runtime": "not-run",
+          "reason": "macos-runtime-unavailable"
+        },
+        "source_exec_dependency_evidence": {
+          "status": "partial",
+          "agent_model_dependency": "refuted-on-linux-claude",
+          "channels_dependency": "not-proven",
+          "platform_specific_runtime": "not-verified"
+        },
+        "production_write_gate": {
+          "status": "disabled-not-proven",
+          "implementation": "implemented-unverified-platform",
+          "reason": "real-codesign-equivalence-not-proven"
+        }
+      }
+    }
+  },
+  "live_target_guard": {
+    "version": "2.1.217",
+    "access": "read-only",
+    "observed_features": {
+      "source-exec": "patched",
+      "agent-model": "patched",
+      "channels": "patched"
+    },
+    "clean_baseline": "absent",
+    "baseline_creation": "forbidden-from-patched-target",
+    "production_write_gate": "disabled-no-baseline"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "hardcoded-e": { "desired": "clean", "generation_one": "unsupported" },
+  "incorrect-agent-source-dependency": { "request_set": ["agent-model"], "desired_closed_set": ["agent-model"], "generation_one_closed_set": ["source-exec", "agent-model"] },
+  "channels-revert-erases-agent-model": { "desired_after_revert": "E.string()", "generation_one_after_revert": "E.enum(" },
+  "adjacent-bak": { "desired_adjacent_backup": false, "generation_one_adjacent_backup": true },
+  "collapsed-error-exit": { "desired_integrity_exit": 2, "generation_one_exit": 1 }
+}

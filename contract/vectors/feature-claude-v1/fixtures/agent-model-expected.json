@@ -1,0 +1,11 @@
+{
+  "variants": {
+    "receiver-e": { "state": "clean", "sites": 1, "replacement_prefix": "model:E.string()" },
+    "receiver-s": { "state": "clean", "sites": 1, "replacement_prefix": "model:S.string()" },
+    "receiver-a": { "state": "clean", "sites": 1, "replacement_prefix": "model:A.string()" },
+    "receiver-q": { "state": "clean", "sites": 1, "replacement_prefix": "model:Q.string()" },
+    "unknown-variant": { "state": "unsupported", "sites": 0, "code": "agent_model_variant_unsupported" },
+    "multiple-suffixes": { "state": "clean", "sites": 2 }
+  },
+  "replacement_rule": "same receiver, string(), block-comment padding, exact original core length"
+}

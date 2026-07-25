@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "bad-oracle-control",
+      "positive_control": true,
+      "columns": 80,
+      "steps": [
+        { "wait": { "features": { "nonexistent-feature": "clean" } }, "timeout": 1 }
+      ]
+    },
+    {
+      "id": "filter-space-visible-all-disabled-plan",
+      "columns": 120,
+      "steps": [
+        { "wait": { "features": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" }, "pending": 0, "phase": "ready" } },
+        { "send": "/" },
+        { "type": "claude channels" },
+        { "send": "enter" },
+        { "wait": { "visible_features": ["channels"] } },
+        { "send": "space" },
+        { "wait": { "selected": ["channels"], "pending": 1, "target_features": ["source-exec", "channels"] } },
+        { "send": "a" },
+        { "wait": { "selected": [], "pending": 0 } },
+        { "send": "escape" }
+      ]
+    },
+    {
+      "id": "unsupported-disabled",
+      "fixture": "unsupported",
+      "columns": 80,
+      "steps": [
+        { "wait": { "features": { "channels": "unsupported" }, "disabled": ["source-exec", "agent-model", "channels"], "pending": 0, "phase": "ready" } },
+        { "send": "space" },
+        { "wait": { "selected": [], "pending": 0 } },
+        { "send": "a" },
+        { "wait": { "selected": [], "pending": 0 } },
+        { "send": "q" }
+      ],
+      "final_features": { "source-exec": "unsupported", "agent-model": "unsupported", "channels": "unsupported" }
+    },
+    {
+      "id": "execute-reprobe-second-execution",
+      "columns": 100,
+      "steps": [
+        { "wait": { "features": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" }, "phase": "ready" } },
+        { "send": "space" },
+        { "wait": { "selected": ["source-exec"], "pending": 1, "target_features": ["source-exec"] } },
+        { "send": "enter" },
+        { "wait": { "features": { "source-exec": "patched" }, "pending": 0, "phase": "done" }, "timeout": 15 },
+        { "send": "space" },
+        { "wait": { "selected": [], "pending": 1, "target_features": [] } },
+        { "send": "enter" },
+        { "wait": { "features": { "source-exec": "clean" }, "pending": 0, "phase": "done" }, "timeout": 15 },
+        { "send": "q" }
+      ],
+      "final_features": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" }
+    },
+    {
+      "id": "mixed-replay",
+      "fixture": "mixed",
+      "columns": 120,
+      "steps": [
+        { "wait": { "features": { "source-exec": "mixed" }, "selected": ["source-exec"], "pending": 1, "phase": "ready" } },
+        { "send": "enter" },
+        { "wait": { "features": { "source-exec": "patched" }, "phase": "done" }, "timeout": 15 },
+        { "send": "escape" }
+      ],
+      "final_features": { "source-exec": "patched", "agent-model": "clean", "channels": "clean" }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unbun.dev/contracts/cc/transaction-scenario.schema.json",
+  "title": "unbun cc transaction scenario vectors",
+  "type": "object",
+  "required": ["schema_version", "protocol", "scenarios"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "protocol": { "const": "shared-store-v1-section-9" },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "entry_features", "requested_features"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "entry_features": {
+            "type": "array",
+            "items": { "enum": ["source-exec", "agent-model", "channels"] },
+            "uniqueItems": true
+          },
+          "requested_features": {
+            "type": "array",
+            "items": { "enum": ["source-exec", "agent-model", "channels"] },
+            "uniqueItems": true
+          },
+          "expected_features": {
+            "type": "array",
+            "items": { "enum": ["source-exec", "agent-model", "channels"] },
+            "uniqueItems": true
+          },
+          "expected_edits": { "type": "integer", "minimum": 0 },
+          "expected_write": { "type": "boolean" },
+          "entry_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "expected_error": { "type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$" }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "expected_features": {},
+              "expected_edits": {},
+              "expected_write": {}
+            },
+            "required": ["expected_features", "expected_edits", "expected_write"]
+          },
+          {
+            "properties": {
+              "entry_digest": {},
+              "expected_error": {}
+            },
+            "required": ["entry_digest", "expected_error"]
+          }
+        ]
+      }
+    }
+  }
+}

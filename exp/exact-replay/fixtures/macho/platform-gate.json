@@ -1,0 +1,27 @@
+{
+  "schema": "unbun.exact-replay.platform-gate",
+  "schema_version": 1,
+  "platform": "macos",
+  "format": "macho",
+  "writes": "disabled",
+  "conclusion": "not-proven",
+  "reason": "real-codesign-equivalence-unavailable",
+  "evidence": {
+    "fixture_manifest": "manifest.json",
+    "contract_test": "test/contract/exact-replay-macho.test.mjs",
+    "parser_negative_vectors": [
+      "conflicting-command",
+      "out-of-bounds-blob",
+      "overlapping-command",
+      "truncated-load-command"
+    ],
+    "implementations": [
+      "js",
+      "python"
+    ],
+    "synthetic_signature_equivalence": true,
+    "real_adhoc_equivalence": false,
+    "codesign_available": false,
+    "skipped": false
+  }
+}

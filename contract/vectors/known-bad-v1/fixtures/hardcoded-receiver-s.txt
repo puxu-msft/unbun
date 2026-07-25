@@ -1,0 +1,1 @@
+agentTool={model:S.enum(["sonnet","opus","haiku","fable"]).optional().describe(`Optional model override for this agent. any string ok`)}

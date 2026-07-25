@@ -1,0 +1,14 @@
+{
+  "decision_clean": "{if(!c?.experimental?.[\"claude/channel\"])return{action:\"skip\",kind:\"capability\"};if(n6()!==\"firstParty\")return{action:\"skip\",kind:\"provider\",message:\"channels feature is not currently available\"};return{action:\"register\"}}",
+  "decision_patched": "{if(!c?.experimental?.[\"claude/channel\"])return{action:\"skip\",kind:\"capability\"};return{action:\"register\"}                                                                                                                                }",
+  "tail_register_decoy": "REAL_DECISION;function decoy(){return{action:\"register\"}}",
+  "multiple_decoys": "REAL_DECISION;function d1(){return{action:\"register\"}};function d2(){return{action:\"register\"}}",
+  "support": {
+    "essential_clean": "tengu_harbor\",!1",
+    "essential_patched": "tengu_harbor\",!0",
+    "permissions_clean": "tengu_harbor_permissions\",!1",
+    "permissions_patched": "tengu_harbor_permissions\",!0",
+    "cap_strip_clean": "[\"claude/channel\"]&&(!oYH()||!b$q(x)))delete",
+    "cap_strip_patched": "[\"claude/channel\"]&&(!oYH()&&!b$q(x)))delete"
+  }
+}

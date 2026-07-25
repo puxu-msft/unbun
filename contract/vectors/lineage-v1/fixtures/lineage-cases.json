@@ -1,0 +1,11 @@
+{
+  "algorithm": "claude-v1-exact-replay",
+  "baseline": "../../golden/claude-v1/synthetic-2.1.175-clean.bin",
+  "targets": [[], ["source-exec"], ["agent-model"], ["channels"], ["source-exec", "agent-model"], ["source-exec", "channels"], ["source-exec", "agent-model", "channels"]],
+  "cases": {
+    "clean": { "substates": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" }, "replayable": true },
+    "mixed_replayable": { "substates": { "source-exec": ["clean", "patched"], "agent-model": "clean", "channels": { "decision": "patched", "feature_flag": "clean", "permissions": "patched", "cap_strip": "clean" } }, "complete": true },
+    "mixed_unreplayable": { "substates": { "source-exec": "mixed", "agent-model": "unknown-bytes", "channels": "clean" }, "complete": false },
+    "same_path_version_different_build": { "path_key_equal": true, "embedded_version_equal": true, "non_feature_byte_diff": true }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unbun.dev/contracts/cc/exact-replay-result.schema.json",
+  "title": "unbun exact replay PoC result",
+  "type": "object",
+  "required": [
+    "implementation",
+    "format",
+    "supported",
+    "normalized_size",
+    "baseline_lineage_sha256",
+    "expected_sha256",
+    "current_sha256",
+    "byte_equal",
+    "error"
+  ],
+  "properties": {
+    "implementation": { "enum": ["js", "python"] },
+    "format": { "enum": ["synthetic-elf-like", "elf", "pe", "macho"] },
+    "supported": { "type": "boolean" },
+    "normalized_size": { "type": "integer", "minimum": 0 },
+    "baseline_lineage_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "expected_sha256": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "current_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "byte_equal": { "type": "boolean" },
+    "error": {
+      "enum": [
+        null,
+        "not_implemented",
+        "unsupported_format",
+        "substate_unreplayable",
+        "baseline_stale_build"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "supported": { "const": false } },
+        "required": ["supported"]
+      },
+      "then": {
+        "properties": {
+          "expected_sha256": { "type": "null" },
+          "byte_equal": { "const": false },
+          "error": { "enum": ["not_implemented", "unsupported_format", "substate_unreplayable"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supported": { "const": true },
+          "byte_equal": { "const": true }
+        },
+        "required": ["supported", "byte_equal"]
+      },
+      "then": {
+        "properties": {
+          "expected_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "error": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supported": { "const": true },
+          "byte_equal": { "const": false }
+        },
+        "required": ["supported", "byte_equal"]
+      },
+      "then": {
+        "properties": {
+          "expected_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "error": { "const": "baseline_stale_build" }
+        }
+      }
+    }
+  ]
+}

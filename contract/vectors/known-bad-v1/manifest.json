@@ -1,0 +1,92 @@
+{
+  "schema": "unbun.cc.vectors.known-bad-v1",
+  "schema_version": 1,
+  "feature_contract": "claude-v1",
+  "provenance": {
+    "source": "dual-implementation-plan.md section 2.2 and Task 0.3",
+    "audit_basis": "Each vector is an executable positive control against the generation-one JavaScript patch path.",
+    "frozen_at": "2026-07-23"
+  },
+  "vectors": [
+    {
+      "id": "hardcoded-e",
+      "source": { "description": "Receiver S exact variant presented to the generation-one E-only classifier.", "audit_basis": "The old classifier literal is model:E.enum; this fixture retains the audited suffix with receiver S." },
+      "input_state": "known-bad",
+      "expected_substates": { "agent-model": "clean" },
+      "expected_output_sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0",
+      "expected_code": "agent_model_variant_unsupported",
+      "expected_exit": 1,
+      "expected_failure": true,
+      "assertion": { "kind": "status-mismatch", "expected": "clean", "observed_generation_one": "unsupported" },
+      "coverage": ["known-bad:hardcoded-e"],
+      "files": [
+        { "path": "fixtures/hardcoded-receiver-s.txt", "size": 136, "sha256": "4c9e1c3e13516f6ce389ce32d6e9fc371274026f8955a8afa07bea42b5ecdd4d" },
+        { "path": "fixtures/desired-observations.json", "size": 556, "sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0" }
+      ]
+    },
+    {
+      "id": "incorrect-agent-source-dependency",
+      "source": { "description": "Generation-one contract closes an agent-model-only request over source-exec.", "audit_basis": "The frozen old dependency graph is independently closed in the positive-control test and produces source-exec plus agent-model for an agent-model-only request." },
+      "input_state": "known-bad",
+      "expected_substates": { "source-exec": "clean", "agent-model": "patched" },
+      "expected_output_sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0",
+      "expected_code": "incorrect_feature_dependency",
+      "expected_exit": 1,
+      "expected_failure": true,
+      "assertion": { "kind": "extra-dependent-feature", "expected": ["agent-model"], "observed_generation_one": ["source-exec", "agent-model"] },
+      "coverage": ["known-bad:incorrect-agent-source-dependency"],
+      "files": [
+        { "path": "fixtures/incorrect-agent-source-dependency.json", "size": 198, "sha256": "17d465ef2428dcb3f9028559d0d0b143055b1edacef34b2fa25f4b25fc551db9" },
+        { "path": "fixtures/desired-observations.json", "size": 556, "sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0" }
+      ]
+    },
+    {
+      "id": "channels-revert-erases-agent-model",
+      "source": { "description": "Patch channels, then agent-model, then revert channels through whole-file adjacent backup.", "audit_basis": "Generation-one runRevert copies the clean .bak over the target for channels." },
+      "input_state": "known-bad",
+      "expected_substates": { "source-exec": "patched", "agent-model": "patched", "channels": "clean" },
+      "expected_output_sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0",
+      "expected_code": "content_mismatch",
+      "expected_exit": 2,
+      "expected_failure": true,
+      "assertion": { "kind": "unrelated-feature-erased", "expected": "E.string()", "observed_generation_one": "E.enum(" },
+      "coverage": ["known-bad:channels-revert-erases-agent-model"],
+      "files": [
+        { "path": "fixtures/generation-one-binary.txt", "size": 450, "sha256": "d3d72296cb49b250f04bfbecedf2b41d327ba4be32231323a0335d42d84eeaa5" },
+        { "path": "fixtures/desired-observations.json", "size": 556, "sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0" }
+      ]
+    },
+    {
+      "id": "adjacent-bak",
+      "source": { "description": "Generation-one destructive channels patch creates target-adjacent backupPath(binary).", "audit_basis": "The fixture is patched in a temporary directory and the adjacent path is observed directly." },
+      "input_state": "known-bad",
+      "expected_substates": { "adjacent-backup": false },
+      "expected_output_sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0",
+      "expected_code": "store_layout_violation",
+      "expected_exit": 2,
+      "expected_failure": true,
+      "assertion": { "kind": "launcher-adjacent-backup", "expected": false, "observed_generation_one": true },
+      "coverage": ["known-bad:adjacent-bak"],
+      "files": [
+        { "path": "fixtures/generation-one-binary.txt", "size": 450, "sha256": "d3d72296cb49b250f04bfbecedf2b41d327ba4be32231323a0335d42d84eeaa5" },
+        { "path": "fixtures/desired-observations.json", "size": 556, "sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0" }
+      ]
+    },
+    {
+      "id": "collapsed-error-exit",
+      "source": { "description": "Generation-one CLI collapses a structural channels failure into the common exit-code 1 branch.", "audit_basis": "The retained generation-one runPatch implementation is called directly on the pinned malformed fixture; its thrown structural failure is mapped through the generation-one CLI's catch-to-exit-1 rule." },
+      "input_state": "known-bad",
+      "expected_substates": { "error-severity": "integrity" },
+      "expected_output_sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0",
+      "expected_code": "content_mismatch",
+      "expected_exit": 2,
+      "expected_failure": true,
+      "assertion": { "kind": "exit-code-collapsed", "expected": 2, "observed_generation_one": 1 },
+      "coverage": ["known-bad:collapsed-error-exit"],
+      "files": [
+        { "path": "fixtures/channels-missing-essential.txt", "size": 337, "sha256": "9d6d79b085279573fe26687d2f095221a8432d49a127ad034ffa4a66406687ef" },
+        { "path": "fixtures/desired-observations.json", "size": 556, "sha256": "e88cdf8c4ec34af4fc28d9b5887a21f36a3dc5e43cc2b00f88efc14ebe2ca4e0" }
+      ]
+    }
+  ]
+}

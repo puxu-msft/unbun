@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unbun.dev/contracts/cc/write-envelope.schema.json",
+  "title": "unbun cc write action envelope",
+  "type": "object",
+  "required": ["schema_version", "success", "exit_code", "action", "results", "errors"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "success": { "type": "boolean" },
+    "exit_code": { "enum": [0, 1, 2, 3] },
+    "action": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["binary", "applied", "edits", "resigned"],
+        "properties": {
+          "binary": { "type": "string", "minLength": 1 },
+          "applied": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+            "uniqueItems": true
+          },
+          "edits": { "type": "integer", "minimum": 0 },
+          "resigned": { "type": "boolean" }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "$ref": "https://unbun.dev/contracts/cc/error.schema.json" }
+    }
+  }
+}

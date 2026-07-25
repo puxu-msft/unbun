@@ -1,0 +1,35 @@
+{
+  "schema": "unbun.exact-replay.platform-gate",
+  "schema_version": 1,
+  "platform": "windows",
+  "format": "pe",
+  "writes": "enabled",
+  "evidence": {
+    "fixture_manifest": "manifest.json",
+    "contract_test": "test/contract/exact-replay-pe.test.mjs",
+    "required_cases": [
+      "clean",
+      "target-source-exec",
+      "target-agent-model",
+      "target-source-exec-agent-model",
+      "target-channels",
+      "target-all",
+      "mixed-replayable",
+      "mixed-unreplayable",
+      "same-version-different-build",
+      "feature-owned-clean-drift"
+    ],
+    "negative_headers": [
+      "bad-dos-magic",
+      "bad-pe-magic",
+      "truncated-header",
+      "contradictory-optional-header"
+    ],
+    "implementations": [
+      "js",
+      "python"
+    ],
+    "full_byte_cross_verification": true,
+    "skipped": false
+  }
+}

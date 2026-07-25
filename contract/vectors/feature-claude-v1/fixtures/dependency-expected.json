@@ -1,0 +1,5 @@
+{
+  "closures": [[], ["source-exec"], ["agent-model"], ["source-exec", "channels"], ["source-exec", "agent-model"], ["source-exec", "channels"], ["source-exec", "agent-model", "channels"], ["source-exec", "agent-model", "channels"]],
+  "remove_source_exec_while_agent_model_enabled": { "allowed": true, "code": null, "exit": 0 },
+  "remove_source_exec_while_channels_enabled": { "allowed": false, "code": "feature_dependency_conflict", "exit": 1 }
+}

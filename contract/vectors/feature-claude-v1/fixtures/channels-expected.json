@@ -1,0 +1,12 @@
+{
+  "decision_clean": { "state": "clean", "sites": 4 },
+  "decision_patched": { "state": "patched", "sites": 4 },
+  "tail_register_decoy": { "state": "clean", "sites": 4, "decoys_skipped": 1 },
+  "multiple_decoys": { "state": "clean", "sites": 4, "decoys_skipped": 2 },
+  "essential_feature_flag_missing": { "state": "mixed", "code": "channels_essential_site_missing" },
+  "permissions_absent": { "state": "clean", "optional": true },
+  "cap_strip_absent": { "state": "clean", "optional": true },
+  "best_effort_clean": { "permissions": "clean", "cap_strip": "clean" },
+  "best_effort_patched": { "permissions": "patched", "cap_strip": "patched" },
+  "best_effort_mixed": { "permissions": "clean", "cap_strip": "patched", "state": "mixed" }
+}

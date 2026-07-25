@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "protocol": "shared-store-v1-section-9",
+  "scenarios": [
+    {
+      "id": "apply-agent-model",
+      "entry_features": [],
+      "requested_features": ["agent-model"],
+      "expected_features": ["agent-model"],
+      "expected_edits": 1,
+      "expected_write": true
+    },
+    {
+      "id": "idempotent-agent-model",
+      "entry_features": ["agent-model"],
+      "requested_features": ["agent-model"],
+      "expected_features": ["agent-model"],
+      "expected_edits": 0,
+      "expected_write": false
+    },
+    {
+      "id": "revert-channels-preserves-agent",
+      "entry_features": ["agent-model", "source-exec", "channels"],
+      "requested_features": ["agent-model"],
+      "expected_features": ["agent-model"],
+      "expected_edits": 5,
+      "expected_write": true
+    },
+    {
+      "id": "entry-digest-mismatch",
+      "entry_features": [],
+      "requested_features": ["agent-model"],
+      "entry_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_error": "concurrent_binary_change"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "clean": { "accepted": true, "byte_equal_after_replay": true },
+  "target_sets": {
+    "empty": "clean",
+    "source-exec": "source-exec",
+    "agent-model": "agent-model",
+    "channels": "source-exec+channels",
+    "source-exec-agent-model": "source-exec+agent-model",
+    "source-exec-channels": "source-exec+channels",
+    "all": "source-exec+agent-model+channels"
+  },
+  "mixed_replayable": { "accepted": true, "requires_full_byte_compare": true },
+  "mixed_unreplayable": { "accepted": false, "code": "baseline_stale_build", "exit": 2 },
+  "same_path_version_different_build": { "accepted": false, "code": "baseline_stale_build", "exit": 2 }
+}

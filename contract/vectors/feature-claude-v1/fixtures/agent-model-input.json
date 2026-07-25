@@ -1,0 +1,11 @@
+{
+  "describe_suffix": ".optional().describe(`Optional model override for this agent. any string ok`)",
+  "audited_variants": [
+    { "id": "receiver-e", "ascii": "model:E.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"]).optional().describe(`Optional model override for this agent. any string ok`)" },
+    { "id": "receiver-s", "ascii": "model:S.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"]).optional().describe(`Optional model override for this agent. any string ok`)" },
+    { "id": "receiver-a", "ascii": "model:A.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"]).optional().describe(`Optional model override for this agent. any string ok`)" },
+    { "id": "receiver-q", "ascii": "model:Q.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"]).optional().describe(`Optional model override for this agent. any string ok`)" }
+  ],
+  "unknown_variant": "model:S.enum([\"sonnet\",\"opus\",\"haiku\",\"new-model\"]).optional().describe(`Optional model override for this agent. any string ok`)",
+  "multiple_suffixes": "model:E.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"]).optional().describe(`Optional model override for this agent. any string ok`);model:S.enum([\"sonnet\",\"opus\",\"haiku\",\"fable\"]).optional().describe(`Optional model override for this agent. any string ok`)"
+}

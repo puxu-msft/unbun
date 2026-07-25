@@ -1,0 +1,157 @@
+{
+  "schema": "unbun.cc.vectors.feature-claude-v1",
+  "schema_version": 1,
+  "feature_contract": "claude-v1",
+  "provenance": {
+    "source": "dual-implementation-spec.md sections 5-6 and dual-implementation-plan.md Task 0.3",
+    "audit_basis": "Small synthetic ASCII/virtual-offset fixtures are manually derived from the frozen contract; historical golden bytes are copied byte-for-byte and independently checksummed.",
+    "frozen_at": "2026-07-23"
+  },
+  "vectors": [
+    {
+      "id": "source-exec-corpus",
+      "source": {
+        "description": "Virtual sparse-binary catalog covering discovery boundaries without storing a 70 MB filler file.",
+        "audit_basis": "Offsets were manually checked against the 32,000,000-byte head/tail discovery rule and 8,000-byte window radius."
+      },
+      "input_state": "mixed",
+      "expected_substates": {
+        "first-tail-multi-tag": ["clean", "clean"],
+        "32mb-boundary": ["clean", "clean"],
+        "overlapping-windows": ["clean"],
+        "states": ["clean", "patched", "mixed", "unsupported"]
+      },
+      "expected_output_sha256": "909713da94043f48e7c947c30dccc1191c6aa1796c5fa4376b072c86bd997c10",
+      "expected_code": null,
+      "expected_exit": 0,
+      "coverage": [
+        "source-exec:first-tail-multi-tag",
+        "source-exec:32mb-boundary",
+        "source-exec:overlapping-windows",
+        "source-exec:clean",
+        "source-exec:patched",
+        "source-exec:mixed",
+        "source-exec:unsupported"
+      ],
+      "files": [
+        { "path": "fixtures/source-exec-input.json", "size": 1334, "sha256": "dae8286dd6b211974418fcecfb173f236a67e3b20319b3fa89d84afb83127d7f" },
+        { "path": "fixtures/source-exec-expected.json", "size": 541, "sha256": "909713da94043f48e7c947c30dccc1191c6aa1796c5fa4376b072c86bd997c10" }
+      ]
+    },
+    {
+      "id": "agent-model-corpus",
+      "source": {
+        "description": "Audited exact enum variants with receiver E, S, A, and historical-golden receiver Q plus unknown and multi-suffix cases.",
+        "audit_basis": "Exact cores and describe suffix are frozen as literal ASCII; expected replacements retain the receiver and equal length."
+      },
+      "input_state": "unsupported",
+      "expected_substates": {
+        "receiver-e": "clean",
+        "receiver-s": "clean",
+        "receiver-a": "clean",
+        "receiver-q": "clean",
+        "unknown-variant": "unsupported",
+        "multiple-suffixes": ["clean", "clean"]
+      },
+      "expected_output_sha256": "68099ecb0069f7d1c3a56e7aaf188cdf41e5939661feff6c5c7a31ec46997b49",
+      "expected_code": "agent_model_variant_unsupported",
+      "expected_exit": 1,
+      "coverage": [
+        "agent-model:receiver-e",
+        "agent-model:receiver-s",
+        "agent-model:receiver-a",
+        "agent-model:receiver-q",
+        "agent-model:unknown-enum-unsupported",
+        "agent-model:multiple-describe-suffixes"
+      ],
+      "files": [
+        { "path": "fixtures/agent-model-input.json", "size": 1277, "sha256": "f80a26b7bd249ed525ad1d93b5b9f16789045471ecac97fd2c78da15c9811226" },
+        { "path": "fixtures/agent-model-expected.json", "size": 663, "sha256": "68099ecb0069f7d1c3a56e7aaf188cdf41e5939661feff6c5c7a31ec46997b49" }
+      ]
+    },
+    {
+      "id": "channels-corpus",
+      "source": {
+        "description": "Synthetic channel decision and support-site strings, including register decoys and optional-site states.",
+        "audit_basis": "Each essential and best-effort site is listed separately so absent, clean, patched, and mixed outcomes remain inspectable."
+      },
+      "input_state": "mixed",
+      "expected_substates": {
+        "decision": ["clean", "patched"],
+        "feature-flag": ["clean", "patched", "absent"],
+        "permissions": ["clean", "patched", "absent"],
+        "cap-strip": ["clean", "patched", "absent"]
+      },
+      "expected_output_sha256": "c1b82d4f1e798d37b7e9adbf0cd4d2494e68a347852edd5f8759f8bacf5b3653",
+      "expected_code": "channels_essential_site_missing",
+      "expected_exit": 1,
+      "coverage": [
+        "channels:decision-clean",
+        "channels:decision-patched",
+        "channels:tail-register-decoy",
+        "channels:multiple-decoys",
+        "channels:essential-feature-flag-missing",
+        "channels:permissions-absent",
+        "channels:cap-strip-absent",
+        "channels:best-effort-clean",
+        "channels:best-effort-patched",
+        "channels:best-effort-mixed"
+      ],
+      "files": [
+        { "path": "fixtures/channels-input.json", "size": 1120, "sha256": "e5cf36389080c0b017eb8e0bd941ca225134c6a4a47d65bc09da04f8b2867931" },
+        { "path": "fixtures/channels-expected.json", "size": 742, "sha256": "c1b82d4f1e798d37b7e9adbf0cd4d2494e68a347852edd5f8759f8bacf5b3653" }
+      ]
+    },
+    {
+      "id": "dependency-closure-corpus",
+      "source": {
+        "description": "Complete target-request closure matrix for the three-feature registry.",
+        "audit_basis": "Closures are manually derived from the pre-implementation correction: agent-model has no dependency and channels depends on source-exec."
+      },
+      "input_state": "clean",
+      "expected_substates": {
+        "requests": 8,
+        "reject-removal": ["channels"]
+      },
+      "expected_output_sha256": "ff6aa44df1e69fea589e170218214d8b07a38e33e74b92c99d1d7d3324e98c53",
+      "expected_code": "feature_dependency_conflict",
+      "expected_exit": 1,
+      "coverage": [
+        "dependency:empty",
+        "dependency:source-exec",
+        "dependency:agent-model",
+        "dependency:channels",
+        "dependency:source-exec-agent-model",
+        "dependency:source-exec-channels",
+        "dependency:agent-model-channels",
+        "dependency:all",
+        "dependency:allow-remove-source-exec-with-agent-model",
+        "dependency:reject-remove-source-exec"
+      ],
+      "files": [
+        { "path": "fixtures/dependency-input.json", "size": 353, "sha256": "26334cc34e2799d84c43044ee26545673284e3553af818a04cccdac455685760" },
+        { "path": "fixtures/dependency-expected.json", "size": 449, "sha256": "ff6aa44df1e69fea589e170218214d8b07a38e33e74b92c99d1d7d3324e98c53" }
+      ]
+    },
+    {
+      "id": "historical-frozen-bytes",
+      "source": {
+        "description": "Synthetic Claude 2.1.175 clean and all-patched bytes copied from the mature Python patcher golden directory.",
+        "audit_basis": "Historical generator records byte-for-byte audit against retired implementations; import was verified with cmp and SHA-256."
+      },
+      "input_state": "clean",
+      "expected_substates": {
+        "clean": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" },
+        "all-patched": { "source-exec": "patched", "agent-model": "patched", "channels": "patched" }
+      },
+      "expected_output_sha256": "3a8abf7b34a7c77f94d87e4939e380d6c075d85f6bedbc387c8ac0d5c9fee650",
+      "expected_code": null,
+      "expected_exit": 0,
+      "coverage": ["source-exec:clean", "source-exec:patched", "agent-model:receiver-q", "channels:decision-clean", "channels:decision-patched"],
+      "files": [
+        { "path": "../../golden/claude-v1/synthetic-2.1.175-clean.bin", "size": 1031, "sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61" },
+        { "path": "../../golden/claude-v1/synthetic-2.1.175-all-patched.bin", "size": 1031, "sha256": "3a8abf7b34a7c77f94d87e4939e380d6c075d85f6bedbc387c8ac0d5c9fee650" }
+      ]
+    }
+  ]
+}

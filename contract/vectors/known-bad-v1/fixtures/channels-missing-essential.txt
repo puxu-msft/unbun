@@ -1,0 +1,2 @@
+HEAD;overview",VERSION:"2.1.999";{if(!c?.experimental?.["claude/channel"])return{action:"skip",kind:"capability"};if(n6()!=="firstParty")return{action:"skip",kind:"provider",message:"channels feature is not currently available"};return{action:"register"}}// @bun @bytecode
+agentTool={model:E.enum(["sonnet","opus","haiku","fable"])};FOOT

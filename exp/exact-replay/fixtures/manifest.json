@@ -1,0 +1,150 @@
+{
+  "schema": "unbun.exact-replay.fixtures",
+  "schema_version": 1,
+  "feature_contract": "claude-v1",
+  "lineage_algorithm": "claude-v1-exact-replay",
+  "format": "synthetic-elf-like",
+  "executable": false,
+  "arch": "synthetic",
+  "signature": "not-applicable",
+  "embedded_version": "2.1.175",
+  "normalized_size": 1031,
+  "provenance": {
+    "source": "contract/golden/claude-v1/synthetic-2.1.175-clean.bin and synthetic-2.1.175-all-patched.bin",
+    "audit_basis": "The historical clean/all-patched pair is frozen and checksum-audited. Agent-only and source-plus-agent bytes are independently replayed from the immutable clean golden by migrate-agent-model-dependency.mjs using the audited fixed site registry; byte ranges and hashes are manually diffed. The all-target bytes remain the frozen all-patched golden.",
+    "frozen_at": "2026-07-23"
+  },
+  "baseline": {
+    "path": "../../../contract/golden/claude-v1/synthetic-2.1.175-clean.bin",
+    "size": 1031,
+    "sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61"
+  },
+  "fixtures": {
+    "clean": {
+      "path": "../../../contract/golden/claude-v1/synthetic-2.1.175-clean.bin",
+      "size": 1031,
+      "sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61"
+    },
+    "target-source-exec": {
+      "path": "synthetic-2.1.175-target-source-exec.bin",
+      "size": 1031,
+      "sha256": "53d30d8261fb15747d70c104468c2c9dd2df9c86b2cf611287566be112fff615"
+    },
+    "target-agent-model": {
+      "path": "synthetic-2.1.175-target-agent-model.bin",
+      "size": 1031,
+      "sha256": "7006d69a6050bcb9847f27263e41ed11afabab6ea034e4553df592b421016715"
+    },
+    "target-source-exec-agent-model": {
+      "path": "synthetic-2.1.175-target-source-exec-agent-model.bin",
+      "size": 1031,
+      "sha256": "4689ec9329f8e6e9f719e8eaef1b0647b76a0000a189af595140ae3812a655fe"
+    },
+    "target-channels": {
+      "path": "synthetic-2.1.175-target-channels.bin",
+      "size": 1031,
+      "sha256": "f97b43c02b59a2c3beef20a5b8c94b0010e219657d6323e90cc2ad5e0fdf73ec"
+    },
+    "target-all": {
+      "path": "../../../contract/golden/claude-v1/synthetic-2.1.175-all-patched.bin",
+      "size": 1031,
+      "sha256": "3a8abf7b34a7c77f94d87e4939e380d6c075d85f6bedbc387c8ac0d5c9fee650"
+    },
+    "mixed-replayable": {
+      "path": "synthetic-2.1.175-mixed-replayable.bin",
+      "size": 1031,
+      "sha256": "d01ee816ca92f22d7223cc27848e6dedf4cde723ffc5f3a0d31bf275815695a8"
+    },
+    "mixed-unreplayable": {
+      "path": "synthetic-2.1.175-mixed-unreplayable.bin",
+      "size": 1031,
+      "sha256": "49508e43648fca318ee28a9caadbd15d6f2eedde390ff54278ec5c72705eb850"
+    }
+  },
+  "target_sets": [
+    { "request_set": [], "closed_set": [], "fixture": "clean" },
+    { "request_set": ["source-exec"], "closed_set": ["source-exec"], "fixture": "target-source-exec" },
+    { "request_set": ["agent-model"], "closed_set": ["agent-model"], "fixture": "target-agent-model" },
+    { "request_set": ["channels"], "closed_set": ["source-exec", "channels"], "fixture": "target-channels" },
+    { "request_set": ["source-exec", "agent-model"], "closed_set": ["source-exec", "agent-model"], "fixture": "target-source-exec-agent-model" },
+    { "request_set": ["source-exec", "channels"], "closed_set": ["source-exec", "channels"], "fixture": "target-channels" },
+    { "request_set": ["agent-model", "channels"], "closed_set": ["source-exec", "agent-model", "channels"], "fixture": "target-all" },
+    { "request_set": ["source-exec", "agent-model", "channels"], "closed_set": ["source-exec", "agent-model", "channels"], "fixture": "target-all" }
+  ],
+  "cases": {
+    "clean": {
+      "current_fixture": "clean",
+      "substates": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" },
+      "current_sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61",
+      "expected": { "supported": true, "expected_sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61", "byte_equal": true, "error": null }
+    },
+    "target-source-exec": {
+      "current_fixture": "target-source-exec",
+      "substates": { "source-exec": "patched", "agent-model": "clean", "channels": "clean" },
+      "current_sha256": "53d30d8261fb15747d70c104468c2c9dd2df9c86b2cf611287566be112fff615",
+      "expected": { "supported": true, "expected_sha256": "53d30d8261fb15747d70c104468c2c9dd2df9c86b2cf611287566be112fff615", "byte_equal": true, "error": null }
+    },
+    "target-agent-model": {
+      "current_fixture": "target-agent-model",
+      "substates": { "source-exec": "clean", "agent-model": "patched", "channels": "clean" },
+      "current_sha256": "7006d69a6050bcb9847f27263e41ed11afabab6ea034e4553df592b421016715",
+      "expected": { "supported": true, "expected_sha256": "7006d69a6050bcb9847f27263e41ed11afabab6ea034e4553df592b421016715", "byte_equal": true, "error": null }
+    },
+    "target-source-exec-agent-model": {
+      "current_fixture": "target-source-exec-agent-model",
+      "substates": { "source-exec": "patched", "agent-model": "patched", "channels": "clean" },
+      "current_sha256": "4689ec9329f8e6e9f719e8eaef1b0647b76a0000a189af595140ae3812a655fe",
+      "expected": { "supported": true, "expected_sha256": "4689ec9329f8e6e9f719e8eaef1b0647b76a0000a189af595140ae3812a655fe", "byte_equal": true, "error": null }
+    },
+    "target-channels": {
+      "current_fixture": "target-channels",
+      "substates": { "source-exec": "patched", "agent-model": "clean", "channels": "patched" },
+      "current_sha256": "f97b43c02b59a2c3beef20a5b8c94b0010e219657d6323e90cc2ad5e0fdf73ec",
+      "expected": { "supported": true, "expected_sha256": "f97b43c02b59a2c3beef20a5b8c94b0010e219657d6323e90cc2ad5e0fdf73ec", "byte_equal": true, "error": null }
+    },
+    "target-all": {
+      "current_fixture": "target-all",
+      "substates": { "source-exec": "patched", "agent-model": "patched", "channels": "patched" },
+      "current_sha256": "3a8abf7b34a7c77f94d87e4939e380d6c075d85f6bedbc387c8ac0d5c9fee650",
+      "expected": { "supported": true, "expected_sha256": "3a8abf7b34a7c77f94d87e4939e380d6c075d85f6bedbc387c8ac0d5c9fee650", "byte_equal": true, "error": null }
+    },
+    "mixed-replayable": {
+      "current_fixture": "mixed-replayable",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "clean",
+        "channels": { "decision": "patched", "feature_flag": "clean", "permissions": "patched", "cap_strip": "clean" }
+      },
+      "complete": true,
+      "current_sha256": "d01ee816ca92f22d7223cc27848e6dedf4cde723ffc5f3a0d31bf275815695a8",
+      "expected": { "supported": true, "expected_sha256": "d01ee816ca92f22d7223cc27848e6dedf4cde723ffc5f3a0d31bf275815695a8", "byte_equal": true, "error": null }
+    },
+    "mixed-unreplayable": {
+      "current_fixture": "mixed-unreplayable",
+      "substates": {
+        "source-exec": "patched",
+        "agent-model": "unknown-bytes",
+        "channels": { "decision": "patched", "feature_flag": "clean", "permissions": "patched", "cap_strip": "clean" }
+      },
+      "complete": false,
+      "current_sha256": "49508e43648fca318ee28a9caadbd15d6f2eedde390ff54278ec5c72705eb850",
+      "expected": { "supported": false, "expected_sha256": null, "byte_equal": false, "error": "substate_unreplayable" }
+    },
+    "same-version-different-build": {
+      "base_fixture": "clean",
+      "embedded_version": "2.1.175",
+      "substates": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" },
+      "mutation": { "offset": 30, "clean_byte": 99, "byte": 120, "ownership": "non-feature" },
+      "current_sha256": "d6fcdf3aa55a3057eeaff9a830d6716ae1a58140b368a15404b43e5398f08c6d",
+      "expected": { "supported": true, "expected_sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61", "byte_equal": false, "error": "baseline_stale_build" }
+    },
+    "feature-owned-clean-drift": {
+      "base_fixture": "clean",
+      "embedded_version": "2.1.175",
+      "substates": { "source-exec": "clean", "agent-model": "clean", "channels": "clean" },
+      "mutation": { "offset": 600, "clean_byte": 97, "byte": 120, "ownership": "channels-decision" },
+      "current_sha256": "16b77e600736712a02f170218972d20d55e33af345f74b646cef7a4769d59be5",
+      "expected": { "supported": true, "expected_sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61", "byte_equal": false, "error": "baseline_stale_build" }
+    }
+  }
+}

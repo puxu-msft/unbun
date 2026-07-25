@@ -1,0 +1,49 @@
+{
+  "schema": "unbun.cc.vectors.lineage-v1",
+  "schema_version": 1,
+  "feature_contract": "claude-v1",
+  "provenance": {
+    "source": "shared-store-format.md section 6.2.1 and dual-implementation-plan.md Task 0.3",
+    "audit_basis": "Exact-replay acceptance outcomes are manually derived from complete substate replay followed by full byte comparison.",
+    "frozen_at": "2026-07-23"
+  },
+  "vectors": [
+    {
+      "id": "exact-replay-matrix",
+      "source": {
+        "description": "Clean, all target sets, replayable/unreplayable mixed, and same-version different-build lineage cases.",
+        "audit_basis": "The fixture forbids version-only or masked-byte lineage success and pins full-byte comparison outcomes."
+      },
+      "input_state": "lineage",
+      "expected_substates": {
+        "clean": "complete",
+        "target-sets": 7,
+        "mixed-replayable": "complete",
+        "mixed-unreplayable": "incomplete",
+        "different-build": "non-feature-byte-diff"
+      },
+      "expected_output_sha256": "8657410def6af624b96cdf0b6a7864508c8c1c56b3dbc6f165bc7104384cb874",
+      "expected_code": "baseline_stale_build",
+      "expected_exit": 2,
+      "coverage": [
+        "lineage:clean",
+        "lineage:target-empty",
+        "lineage:target-source-exec",
+        "lineage:target-agent-model",
+        "lineage:target-channels",
+        "lineage:target-source-exec-agent-model",
+        "lineage:target-source-exec-channels",
+        "lineage:target-all",
+        "lineage:mixed-replayable",
+        "lineage:mixed-unreplayable",
+        "lineage:same-path-version-different-build"
+      ],
+      "files": [
+        { "path": "fixtures/lineage-cases.json", "size": 934, "sha256": "23a160e1a9d23168e36be2f48a7e3cb85adcf73cfe72f6a797badc17b54b5466" },
+        { "path": "fixtures/lineage-expected.json", "size": 653, "sha256": "8657410def6af624b96cdf0b6a7864508c8c1c56b3dbc6f165bc7104384cb874" },
+        { "path": "../../golden/claude-v1/synthetic-2.1.175-clean.bin", "size": 1031, "sha256": "0a067e12954675a56d6a2aa25c4180c1746005d5cd9e438607d0fb913355ff61" },
+        { "path": "../../golden/claude-v1/synthetic-2.1.175-all-patched.bin", "size": 1031, "sha256": "3a8abf7b34a7c77f94d87e4939e380d6c075d85f6bedbc387c8ac0d5c9fee650" }
+      ]
+    }
+  ]
+}

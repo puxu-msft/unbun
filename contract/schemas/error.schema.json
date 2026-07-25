@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unbun.dev/contracts/cc/error.schema.json",
+  "title": "unbun cc structured error",
+  "type": "object",
+  "required": ["schema_version", "code", "message", "binary", "feature", "details"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "code": {
+      "enum": [
+        "store_version_unsupported",
+        "target_identity_mismatch",
+        "target_locked",
+        "baseline_not_found",
+        "channels_patched_no_baseline",
+        "unsupported_or_mixed_no_baseline",
+        "version_probe_failed",
+        "baseline_conflict",
+        "baseline_invalid",
+        "baseline_stale_build",
+        "snapshot_exists",
+        "snapshot_not_found",
+        "snapshot_ambiguous",
+        "snapshot_invalid",
+        "concurrent_binary_change",
+        "content_mismatch",
+        "rollback_failed",
+        "binary_in_use",
+        "codesign_failed"
+      ]
+    },
+    "message": { "type": "string", "minLength": 1 },
+    "binary": { "type": ["string", "null"] },
+    "feature": {
+      "anyOf": [
+        { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        { "type": "null" }
+      ]
+    },
+    "details": { "type": "object" }
+  }
+}

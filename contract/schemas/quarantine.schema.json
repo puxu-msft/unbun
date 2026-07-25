@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unbun.dev/contracts/cc/quarantine.schema.json",
+  "title": "unbun cc quarantine manifest",
+  "type": "object",
+  "required": ["schema", "schema_version", "original_path", "reason", "observed_sha256", "discovered_at", "discovered_by"],
+  "properties": {
+    "schema": { "const": "unbun.cc.quarantine" },
+    "schema_version": { "const": 1 },
+    "original_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+(?:/[^\\\\]+)*$"
+    },
+    "reason": { "type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$" },
+    "observed_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "discovered_at": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "discovered_by": { "type": "string", "minLength": 1 }
+  }
+}

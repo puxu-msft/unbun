@@ -1,0 +1,21 @@
+{
+  "name": "unbun",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "unbun": "./cli.mjs"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "acorn": "^8.14.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "esbuild": "^0.28.1",
+    "ink": "7.1.1",
+    "react": "19.2.8"
+  },
+  "scripts": {
+    "test": "bun test"
+  }
+}

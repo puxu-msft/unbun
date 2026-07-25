@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unbun.dev/contracts/cc/baseline.schema.json",
+  "title": "unbun cc baseline manifest",
+  "type": "object",
+  "required": ["schema", "schema_version", "feature_contract", "path_key", "embedded_version", "blob", "sha256", "lineage_algorithm", "lineage_sha256", "size", "states", "created_at", "created_by"],
+  "properties": {
+    "schema": { "const": "unbun.cc.baseline" },
+    "schema_version": { "const": 1 },
+    "feature_contract": { "const": "claude-v1" },
+    "path_key": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "embedded_version": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)*$" },
+    "blob": { "type": "string", "pattern": "^blobs/[0-9a-f]{64}\\.ccbak$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "lineage_algorithm": { "const": "claude-v1-exact-replay" },
+    "lineage_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "size": { "type": "integer", "minimum": 0 },
+    "states": {
+      "type": "object",
+      "required": ["source-exec", "agent-model", "channels"],
+      "properties": {
+        "source-exec": { "const": "clean" },
+        "agent-model": { "const": "clean" },
+        "channels": { "const": "clean" }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "created_by": { "type": "string", "minLength": 1 }
+  }
+}

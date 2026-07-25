@@ -1,0 +1,14 @@
+{
+  "name": "unbun-js-tui-poc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run app.jsx",
+    "test:pty": "uv run --with pyte==0.8.2 python tests/test_pty.py"
+  },
+  "dependencies": {
+    "ink": "7.1.1",
+    "react": "19.2.8"
+  }
+}

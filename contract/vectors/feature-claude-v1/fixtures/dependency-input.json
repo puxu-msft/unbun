@@ -1,0 +1,5 @@
+{
+  "registry_order": ["source-exec", "agent-model", "channels"],
+  "requires": { "source-exec": [], "agent-model": [], "channels": ["source-exec"] },
+  "requests": [[], ["source-exec"], ["agent-model"], ["channels"], ["source-exec", "agent-model"], ["source-exec", "channels"], ["agent-model", "channels"], ["source-exec", "agent-model", "channels"]]
+}

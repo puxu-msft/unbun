@@ -1,0 +1,12 @@
+{
+  "transform": { "from": "// @bun @bytecode", "to": "// @bun @source__", "equal_length": true },
+  "results": {
+    "first-tail-multi-tag": { "state": "clean", "sites": [39, 79999007] },
+    "32mb-boundary": { "state": "clean", "sites": [31999988, 38000008] },
+    "overlapping-windows": { "state": "clean", "sites": [19999997] },
+    "clean": { "state": "clean", "sites": 2 },
+    "patched": { "state": "patched", "sites": 2 },
+    "mixed": { "state": "mixed", "sites": 2 },
+    "unsupported": { "state": "unsupported", "sites": 0 }
+  }
+}

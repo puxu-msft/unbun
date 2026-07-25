@@ -1,0 +1,26 @@
+{
+  "valid_manifests": ["target", "baseline", "snapshot", "lock-owner", "quarantine"],
+  "invalid_manifest_cases": {
+    "missing_field": { "remove": "schema_version", "code": "baseline_invalid" },
+    "wrong_type": { "field": "size", "value": "1031", "code": "baseline_invalid" },
+    "higher_version": { "field": "schema_version", "value": 2, "code": "store_version_unsupported" },
+    "path_traversal": { "field": "blob", "value": "../escape.ccbak", "code": "baseline_invalid" },
+    "hash_mismatch": { "field": "sha256", "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "code": "baseline_invalid" },
+    "size_mismatch": { "field": "size", "value": 1032, "code": "baseline_invalid" },
+    "version_mismatch": { "directory": "2.1.176", "embedded_version": "2.1.175", "code": "baseline_invalid" },
+    "state_mismatch": { "manifest": "clean", "detected": "patched", "code": "baseline_invalid" }
+  },
+  "crash_residue": {
+    "orphan_blob": { "manifest": false, "blob": true, "active": false },
+    "manifest_only": { "manifest": true, "blob": false, "valid": false },
+    "temp_only": { "temp": true, "active": false }
+  },
+  "locks": {
+    "contention": { "write_lock_exists": true, "code": "target_locked", "exit": 1 },
+    "stale_unknown_owner": { "write_lock_exists": true, "owner_json": false, "auto_remove": false }
+  },
+  "snapshots": {
+    "ambiguity": { "slug": "before-change", "versions": ["2.1.174", "2.1.175"], "current_version": "2.1.176", "code": "snapshot_ambiguous" },
+    "force_activation": { "old_manifest": "valid", "new_blob": "verified", "activation": "atomic-manifest-replace" }
+  }
+}

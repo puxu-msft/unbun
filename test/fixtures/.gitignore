@@ -1,0 +1,14 @@
+# fixture 构建产物（非源码，勿入库）——由 build-fixture.mjs 即时重建。
+# `mini` 是 bun --compile SFX（内含整个 bun 运行时，~94MB），tiny.txt 是被嵌入资产的副本记录。
+# `mini-doublemagic` 是 Task 4.3 消歧 fixture 变体（正文注入 magic 字面量），同样 ~94MB。
+mini
+mini-doublemagic
+tiny.txt
+*.hooked
+# `rt-src` 是 Task 5.1 round-trip fixture（纯 app SFX，~94MB），`rebuilt` 是其 rebuild 产物——
+# 均即时重建、不入库（测试通常写进临时目录，这里兜底默认目录误建）。
+rt-src
+rebuilt
+# `renamed-copy` 是 buildVersionAnchorFixture 的换名副本默认名（~94MB，E3 命名一致性 fixture）——
+# 缓存到临时目录，这里兜底默认 outDir 的误建产物。
+renamed-copy

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unbun.dev/contracts/cc/target.schema.json",
+  "title": "unbun cc target manifest",
+  "type": "object",
+  "required": ["schema", "schema_version", "path_key", "canonical_path", "display_name", "created_at"],
+  "properties": {
+    "schema": { "const": "unbun.cc.target" },
+    "schema_version": { "const": 1 },
+    "path_key": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "canonical_path": { "type": "string", "minLength": 1 },
+    "display_name": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time", "pattern": "Z$" }
+  }
+}

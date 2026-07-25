@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "algorithm": "canonical-path-v1",
+  "cases": [
+    {
+      "id": "posix-symlink",
+      "platform": "posix",
+      "input_path": "/opt/unbun/current/claude",
+      "symlinks": { "/opt/unbun/current": "/opt/unbun/real" },
+      "canonical_path": "/opt/unbun/real/claude",
+      "path_key": "196d6b528d081da52585b7075154a680271846e78c596329fa1c5d0f78111baf"
+    },
+    {
+      "id": "posix-space",
+      "platform": "posix",
+      "input_path": "/home/Test User/Claude Code/claude",
+      "canonical_path": "/home/Test User/Claude Code/claude",
+      "path_key": "96dbdda43915a0fda12d583f8b7cc43b409d8c234e18248dd6233bdb20d099d5"
+    },
+    {
+      "id": "posix-nfc",
+      "platform": "posix",
+      "input_path": "/home/José/claude",
+      "canonical_path": "/home/José/claude",
+      "path_key": "29f47e1bfd9867f2c18cec346b9fc5b98c9ad9625fd83dd6702850b5a2cac660"
+    },
+    {
+      "id": "windows-drive",
+      "platform": "windows",
+      "input_path": "C:\\Users\\Alice\\Claude.exe",
+      "canonical_path": "c:/users/alice/claude.exe",
+      "path_key": "a67f365bc0c9f36760d60fffaff73ab9a4262af0dab05afd9f0e2fdf475f5e7e"
+    },
+    {
+      "id": "windows-unc",
+      "platform": "windows",
+      "input_path": "\\\\Server\\Share\\Claude.exe",
+      "canonical_path": "//server/share/claude.exe",
+      "path_key": "e87c9c045f1b89ae0cb63c789745a7da4009375537796554a2cb70a118beb011"
+    },
+    {
+      "id": "windows-separator",
+      "platform": "windows",
+      "input_path": "D:\\Tools/Claude\\Claude.exe",
+      "canonical_path": "d:/tools/claude/claude.exe",
+      "path_key": "7eebf9dc838e813d1c9e0662e0a9f712ba7b4121af06873dc25f93ed5a6af883"
+    },
+    {
+      "id": "windows-u-umlaut",
+      "platform": "windows",
+      "input_path": "C:\\Users\\Üser\\Claude.exe",
+      "canonical_path": "c:/users/Üser/claude.exe",
+      "path_key": "34225271497b0545c629b0703f80aaf3874e07aff9505e690c689129e00471b9"
+    },
+    {
+      "id": "windows-sharp-s",
+      "platform": "windows",
+      "input_path": "C:\\Users\\Straße\\Claude.exe",
+      "canonical_path": "c:/users/straße/claude.exe",
+      "path_key": "087a595f34718c90c428dd7dc087d9b283ba3268ce19a9b3e387b9163d11af06"
+    },
+    {
+      "id": "windows-ascii-lowercase-only",
+      "platform": "windows",
+      "input_path": "\\\\?\\C:\\ÜBER\\AßZ\\Claude.exe",
+      "canonical_path": "c:/Über/aßz/claude.exe",
+      "path_key": "1207361d675cd4bd70f46c1e06f6b1086301a6a2937233ebac9eb7197757ad53"
+    }
+  ]
+}

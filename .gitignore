@@ -1,0 +1,24 @@
+
+# Editor and OS metadata.
+.DS_Store
+Thumbs.db
+
+# js
+node_modules/
+dist/
+coverage/
+
+# py
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Generated extraction, rebuild, and experiment outputs.
+refs/
+dumped/
+python/cc-patch/backups/
+
+*.bin
+*.exe
+*.macho
