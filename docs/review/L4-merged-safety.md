@@ -103,3 +103,34 @@
 - **L3A-03/04 的多版本 corpus**（L3-A 遗留线索 1）：未用异版本、异 minifier handle 的真实二进制做端到端 split→diff 验证，本层沿用 L3-A 结论未复核。
 - **性能 / 内存**：未复测 L3B-11 的写路径峰值内存（3.48GB RSS）基线。
 - **Python 侧边界输入的更深行为**：L4-02 只比对了 exit 码与顶层字段；Python 在垃圾字节输入下报告 `probe_error:null` 且给出 feature 状态，其状态判定是否合理未单独审查。
+
+---
+
+## 主会话补充：修复与最终验证（本轮收尾）
+
+### 已修复并独立验证的 L4 发现
+
+| ID | 处置 |
+|---|---|
+| L4-01 🔴 | ✅ 已修（`658cd48`）。主会话**独立复现**了 Python 侧完整数据丢失链（symlink 被替换/真实二进制未动却报 success/pathKey 漂移/channels 永久无法回退），两个写入口重绑 `identity.canonical_path`，新增 `tests/test_symlink_target.py`（4 用例，覆盖全部四条可观察后果）。修复后验证：symlink 存活、真实文件被改、pathKey 唯一、不可逆 channels 可逐字节回退。 |
+| L4-03 🟠 | ✅ 已修。Python `probe_binary` 改报 canonical 路径；实测两侧 `status.path` 现已一致。 |
+| L4-04 🟠 | ✅ 已修。JS gate 提前到 `targetContext(publish:true)` 之前，与 Python 边界对齐；Linux 正常写路径未受影响。 |
+| L4-05 🟠 | ✅ 已修。非 TTY + 多目标 + mutating 子命令现**拒绝并给出可操作提示**；只读路径与显式 `--all` 不受影响。固化该危险默认的旧测试已按正确语义改写，并补只读/`--all` 两个方向的对照。 |
+| L4-02 🟠 | ⏸ **未修（已立档）**。边界输入的跨实现发散需要先在契约层决定统一语义（建议对齐 Python 的「结构化 `probe_error` + exit 0」，schema 已为此留位），再双侧落地 + 纳入差分矩阵。属契约决策，不宜在收尾阶段单方面拍板。 |
+| L4-06/07 🟡 | ⏸ 未修，已立档为 backlog（win32 store root 校验、JS `probe_error` 死字段——后者与 L4-02 同批处理更合理）。 |
+
+### 最终验证（干净 checkout，非本机残留）
+
+从 `git archive HEAD` 解出干净副本、`bun install` 后跑双侧全量：
+
+- `sha256sum --check contract/golden/SHA256SUMS` → 全 OK
+- Python **455 passed**
+- JS **450 pass**（见下方 flake 说明）
+
+### 已知 flake（如实记录，不掩盖）
+
+`test/patch/tui/pty.test.mjs` 的 `Ink real PTY proof` 在**全量并发**运行下偶发失败（观察到约 1/3 次），但**单独连跑 5/5 通过**。判断为 PTY 时序在并发负载下的敏感性，非功能缺陷。它污染「全量全绿」这一发布判据，应在 backlog 中处理（隔离运行或加稳定化等待），在此之前不应把单次全量绿当作无条件通过。
+
+### 与 L4 评审者的一处事实订正
+
+评审报告称开始时「13 commit + `cli.mjs` 未提交」——属实。那 91 行是 L3A 修复被精确 pathspec 漏掉的，已在 `29bb9e7` 补提交，并把「只有干净 checkout 能证明全绿」写入 L2 文档与项目记忆。
