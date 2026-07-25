@@ -38,14 +38,14 @@
 | ID | 级别 | 位置 | 问题 | 处置 |
 |---|---|---|---|---|
 | L2B-01 | 🔴 Blocker | `.gitignore` | golden/fixture(21) 被 `*.bin` 忽略未入库，干净 clone 缺文件、双侧假绿依赖本机残留。 | ✅ **已修并验证**（commit `e35bb3b`，精确 negation + `git archive` fresh-checkout `sha256sum` 全 OK） |
-| L2A-01 | 🟠 Major | runtime-oracle.test.mjs:142 + acceptance.md:30 | acceptance 标 PASS 的 runtime wire-oracle gate 实测失败，根因真实 claude `Not logged in`（authentication_failed）——gate 隐式依赖未声明的「已登录」前置。发布 gate 可信度问题，非代码等价缺陷。 | 待定：acceptance 显式声明前置条件 or 环境探测跳过；L4 核实上次真通过的环境。已并入 L2-seed-01。 |
-| L2B-02 | 🟠 Major | manifests.mjs vs store.py | Python 只 jsonschema 加载 3/10 schema（status/error/write-envelope），其余 7 个靠手写 validator 或无消费 → schema 加约束时两实现漂移。 | 待定：Python 抽共享 validator，用原 schema 验证全部适用对象 + malformed 负测试。 |
-| L2B-03 | 🟠 Major | schema.test.mjs:325 / test_models.py:57 | 「exactly freezes」名不副实：JS 只锁 code 顺序+exit∈[1,2,3]+meaning 非空；Python 只比 code→exit、不比 meaning。互换 exit 或改 meaning 仍绿。**测试名撒谎的假绿**。 | 待定：两侧维护完整 `{code,exit,meaning}` 预期做 deepEqual/==（改法清晰）。 |
-| L2A-02 | 🟡 Minor（确认） | agent_model.py:202 vs agent-model.mjs:140 | Python `replay_substates` 无 receiver identity 校验、`FeatureSubstate` 无 receiver 字段；JS 有校验+负测试。主会话独立确认。当前单站点 fixture 下不可达，但真实等价缺口。 | 待定：Python 补 receiver 字段+校验+多站点负测试（对齐 JS）。移交 L3-python。 |
-| L2B-04 | 🟠 Major | vector-integrity vs Python | known-bad 5 语料+manifest 仅 JS 消费；Python 无加载、无 hash 校验（有独立 no-baseline 拒绝测试但不覆盖冻结语料）。 | 待定：Python 补 known-bad runner（校验 size/SHA + 证不复现历史缺陷）。历史缺陷源自 JS 一代，非当前假绿但单边。 |
-| L2B-05 | 🟠 Major | vector-integrity vs test_golden.py | SHA256SUMS 仅 JS 校验；Python 用私有副本 `tests/golden/`（现 hash 同但不校验共享 golden 冻结值）。 | 待定：Python 增读共享 SHA256SUMS 校验 or 重定向 oracle 到共享路径。 |
-| L2B-06 | 🟡 Minor | Python 各 vector 测试 | Python 不消费 vector manifest（provenance/coverage/fixture hash 仅 JS 验）。 | 待定：manifest hash 校验作两侧共用测试职责。 |
-| L2B-07 | 🟡 Minor | L0 doc | vector 计数口径「22」与实际(21 payload+4 manifest)不符。 | 修 L0 措辞 + `contract/README.md` 维护机器可验证 inventory。 |
+| L2A-01 | 🟠 Major → ✅ 已修 | runtime-oracle.test.mjs:142 + acceptance.md:30 | acceptance 标 PASS 的 runtime wire-oracle gate 实测失败，根因真实 claude `Not logged in`（authentication_failed）——gate 隐式依赖未声明的「已登录」前置。发布 gate 可信度问题，非代码等价缺陷。 | ✅ 已修：runtime-oracle.test.mjs 加显式 precondition 探测——fixture 缺失 `test.skipIf` 跳过；未认证（stdout 命中 `authentication_failed`/`Not logged in`）时 warn+skip 而非 fail，但「clean 真跑通却不 advertise」的真实回归仍 fail（不掩盖）。3/3 确定性跳过。acceptance:30 补前置条件声明。 |
+| L2B-02 | 🟠 Major → ✅ 已修 | manifests.mjs vs store.py | Python 只 jsonschema 加载 3/10 schema，其余靠手写 validator 或无消费 → schema 加约束时两实现漂移。 | ✅ 已修（Python agent）：`test_contract_consumption.py` 用 Draft202012Validator 加载全部 10 schema 验证 Python 产物 + 每 schema 一个 malformed 负样本。 |
+| L2B-03 | 🟠 Major → ✅ 已修 | schema.test.mjs / test_models.py | 「exactly freezes」名不副实：JS 只锁 code 顺序+exit∈[1,2,3]+meaning 非空；Python 只比 code→exit。 | ✅ 已修：JS `schema.test.mjs` 与 Python `test_models.py` 均改为对全部 19 条 `{code,exit_code,meaning}` 完整 deepEqual/==，任何字段改动都 fail。 |
+| L2A-02 | 🟡 Minor（确认）→ ✅ 已修 | agent_model.py:202 vs agent-model.mjs:140 | Python `replay_substates` 无 receiver identity 校验、`FeatureSubstate` 无 receiver 字段。 | ✅ 已修（Python agent）：`FeatureSubstate` 加 receiver 字段、observe 采集、replay 校验 receiver mismatch + forged-swap 负测试。主会话独立探针确认三处生效。 |
+| L2B-04 | 🟠 Major → ✅ 已修 | vector-integrity vs Python | known-bad 5 语料+manifest 仅 JS 消费。 | ✅ 已修（Python agent）：Python known-bad runner 校验 size/SHA 并证不复现历史缺陷；JS-gen-one 无 Python 类比项已注释来源。 |
+| L2B-05 | 🟠 Major → ✅ 已修 | vector-integrity vs test_golden.py | SHA256SUMS 仅 JS 校验；Python 用私有副本不校验共享冻结 hash。 | ✅ 已修（Python agent）：Python 读共享 `SHA256SUMS` 逐项重算校验，并确认私有 `tests/golden/` 与共享 golden 逐字节一致。 |
+| L2B-06 | 🟡 Minor → ✅ 已修 | Python 各 vector 测试 | Python 不消费 vector manifest（fixture size/hash 仅 JS 验）。 | ✅ 已修（Python agent）：Python 对 4 个 manifest 逐 fixture 校验 size/SHA256。 |
+| L2B-07 | 🟡 Minor → ✅ 已修 | L0 doc | vector 计数口径「22」不清。 | ✅ 已修：L0 doc 改精确口径（4 顶层+14 fixtures+4 manifests）；`contract/README.md` 加机器可核对 Inventory 表 + Python 校验命令。 |
 | L2-seed-01 | 🔵 → 并入 L2A-01 | runtime-oracle.test.mjs:8 | 硬编码绝对 fixture 路径 + live 依赖。 | 见 L2A-01。 |
 | L2A-03/04/05 | 🔵 Note | golden/interop/known-bad | 正向确认：golden 真消费且来自审计历史、interop 真双向、known-bad JS-only 但历史合理。 | 无需改动，供 L4 引用。 |
 

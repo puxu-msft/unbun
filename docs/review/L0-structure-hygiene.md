@@ -15,7 +15,7 @@
 | JS 补丁器 | `lib/patch/**` | production 补丁管理器（cli/core/io/store/targets/transaction/tui） | 8 子域 |
 | JS 探针 | `lib/probes/*.cjs` | 跑在真 Bun 运行时的只读探针 | 3 个 |
 | Python 实现 | `python/cc-patch/src/cc_patch/**` | 与 JS 平行的完整第二实现 | 23 文件 |
-| 跨实现契约 | `contract/**` | schemas(10) + vectors(22) + golden(4)，两边共同消费 | — |
+| 跨实现契约 | `contract/**` | schemas(10) + vectors(4 顶层 + 4 组×[14 fixtures + 4 manifests]=22 JSON) + golden(2 synthetic .bin + SHA256SUMS + README) | — |
 | JS 测试 | `test/**` | 顶层 19 + 子目录（contract/interop/patch/pty） | ~64 文件 |
 | Python 测试 | `python/cc-patch/tests/**` | 镜像 JS 的独立测试套 | 28 文件 |
 | 文档/实验/归档 | `docs/` `exp/` `archive/` `.claude/` | 16 篇 docs + 4 个 PoC + provenance | — |

@@ -41,7 +41,7 @@
 |---|---|---|---|---|---|
 | L0 | 1 | 1 | 1 | 0 | git 首提交状态残缺（Blocker，待处理）；记忆双失效（Major，待处理） |
 | L1 | 1 | 3 | 4 | 3 | ✅ Blocker（平台假 gate）双实现已修并独立验证；L1B-04(cc run 透参)已修；A 档文档漂移 9 项已修。架构心智模型判定可信 |
-| L2 | 1 | 5 | 3 | 5 | ✅ Blocker（golden 未入库）已修并 fresh-checkout 验证。等价证据链框架可信；核心问题=Python 侧契约消费系统性弱于 JS（schema/known-bad/SHA/receiver）+ runtime-oracle gate 不可复现。修复批次待定 |
+| L2 | 1 | 5 | 3 | 5 | ✅ **全部已修**：Blocker（golden 未入库）+ Python 契约对齐（schema 全量/catalog 完整冻结/known-bad/SHA/receiver identity）+ runtime-oracle 环境探测 + 计数。等价证据链框架经正向对照证实可信。JS 408/0、Python 404 全绿 |
 | L2 | — | — | — | — | 待执行 |
 | L3 | — | — | — | — | 待执行 |
 | L4 | — | — | — | — | 待执行 |
