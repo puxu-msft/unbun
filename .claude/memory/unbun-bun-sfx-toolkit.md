@@ -18,4 +18,8 @@ metadata:
 
 **平台写 gate 是 fail-closed 的**：仅 `production_write_gate.status === 'enabled'` 的平台（当前只有 Linux）允许 production 写；Windows/macOS 未证明 runtime/codesign 等价，写请求被拒（`platform_write_disabled`，exit 1）且目标字节不变。数据驱动于 `contract/vectors/platform-writes-v1.json`，测试注入 enabled matrix 才能演练平台写内部。
 
+**目标寻址用 canonical（realpath）路径**：写入对象与 store `path_key` 同源。曾因二者不同源，在 `bin/claude -> versions/<ver>` 这类 symlink 布局下 patch 打在 symlink 上（真实二进制未动却报 success）、且 pathKey 漂移使 baseline 不可达——不可逆的 channels 打上后会**永久无法回退**。这是 review 抓到的最严重缺陷，勿再引入。
+
+**写权限只由显式 mutating 子命令授予**（`patch`/`revert`/snapshot restore），不带子命令一律只读，与是否带 `--binary`/`--json`/`--feature` 无关。
+
 **首轮系统性 review 的结论与修复记录在 `docs/review/`**（分层 L0-L4，README 是索引与状态表）。相关：[[knowledge-routing-docs-vs-memory]]；大 bundle 逆向属 fan-out，应外包并发 agent、主线只做紧耦合实现。
