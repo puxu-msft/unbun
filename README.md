@@ -33,7 +33,7 @@
 | `cc snapshot` | `unbun cc snapshot <save\|list\|rm> ...` | 管理 shared store v1 中的 content-addressed 命名快照 |
 | `cc store` / `cc lock` | `unbun cc store root` / `unbun cc lock <inspect\|cleanup>` | 查看 store root、诊断 cooperative lock；stale lock 仅显式 `--force` 清理 |
 | `cc patch-loader-hook` | `unbun cc patch-loader-hook <bin> [--out <path>] [--force]` | 把 claude bundle 顶部的等长注释锚替换成只读 loader-hook payload，写**副本**（size 分毫不变，TOC-safe）。守卫：锚点零命中即报错；拒写 `versions/` live 安装区除非 `--force`；有 `.bak` 校验尺寸 |
-| `cc run` | `unbun cc run <bin> --ext <script> [args...]` | 拷贝→打桩→spawn 起进程（`CC_EXT=<script>`）→收集输出→删临时副本。对 live 二进制只读。跑任意外部只读脚本的逃生口 |
+| `cc run` | `unbun cc run <bin> --ext <script> [-- <target-args...>]` | 拷贝→打桩→spawn 起进程（`CC_EXT=<script>`）→收集输出→删临时副本。对 live 二进制只读。`--` 之后的参数原样透传给目标脚本（可含 `--` 开头的 flag）。扩展加载失败 fail-loud，不静默当成功。跑任意外部只读脚本的逃生口 |
 | `cc introspect` | `unbun cc introspect <bin> --probe <assets\|graph\|facts> [--out <dir>]` | `cc run` + 内置探针：`assets`（`Bun.embeddedFiles`→dump）、`graph`（instrument require→加载序 + 调用图）、`facts`（version / Bun.version / process.versions / env→JSON） |
 
 ### 双实现补丁管理器
@@ -68,9 +68,11 @@ uv run --directory python/cc-patch ccpatch --check --binary /path/to/claude --js
 uv run --directory python/cc-patch ccpatch patch --binary /path/to/claude --feature agent-model --json
 ```
 
-裸 TTY 中两套 TUI 都支持按 binary path / feature 过滤、`space`、只切可见项的 `a`、unsupported disabled、mixed replay、提交后重新探测并继续第二次执行。裸非 TTY 只读；写盘必须使用显式 `patch`、`revert` 或 snapshot restore。
+裸 TTY 中两套 TUI 都支持按 binary path / feature 过滤、`space`、只切可见项的 `a`、unsupported disabled、mixed replay、提交后重新探测并继续第二次执行。**写权限只由显式 mutating 子命令授予**（`patch` / `revert` / snapshot restore）——不带子命令的调用一律只读，无论是否带 `--binary`、`--json`、`--feature` 等选项；裸非 TTY 只读。
 
-平台 gate：Linux 的双实现 shared transaction、runtime oracle 与 production写路径已通过；Windows 仅有 PE结构/exact replay证据，真实 runtime未验证；macOS真实 codesign equivalence未证明，因此 Windows/macOS production gate保持禁用。当前 live 2.1.217三 feature均patched且无clean baseline，仍只允许只读status。
+目标由 **canonical（realpath）路径**寻址：写入对象与 store 身份键（`path_key`）同源，因此 `bin/claude -> versions/<ver>` 这类 symlink 安装布局下，patch 作用于真实二进制、symlink 保持不变、同一目标恒得同一 store 命名空间。
+
+平台 gate：Linux 的双实现 shared transaction、runtime oracle 与 production写路径已通过；Windows 仅有 PE结构/exact replay证据，真实 runtime未验证；macOS真实 codesign equivalence未证明，因此 Windows/macOS production gate保持禁用。gate 是 **fail-closed** 的：未启用平台的写请求以 `platform_write_disabled`（exit 1）被拒且目标字节不变，其保护范围是目标二进制的 patch/revert 与 snapshot restore（store-only 操作不在其列，见 `contract/vectors/platform-writes-v1.json` 的 `aggregation_rule.scope`）。当前 live 2.1.217三 feature均patched且无clean baseline，仍只允许只读status。
 
 ## 快速上手
 

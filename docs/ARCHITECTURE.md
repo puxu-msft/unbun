@@ -120,7 +120,11 @@ flowchart TD
 
 ## 安全边界
 
-- **static vs runtime vs mutate 三分**是真正的架构关注点分离：`extract`/`assets`/`split`/`layout`/`diff` 纯读、绝不执行目标；`cc run`/`introspect`/`patch-loader-hook` 只对副本打桩 + 跑；显式 `cc patch/revert/snapshot restore` 与 Python 对应命令才会写目标，并走 shared clean baseline、cooperative lock、exact replay、原子替换、回读后验与失败回滚。裸非TTY调用只读。
+- **static vs runtime vs mutate 三分**是真正的架构关注点分离：`extract`/`assets`/`split`/`layout`/`diff` 纯读、绝不执行目标；`cc run`/`introspect`/`patch-loader-hook` 只对副本打桩 + 跑；显式 `cc patch/revert/snapshot restore` 与 Python 对应命令才会写目标，并走 shared clean baseline、cooperative lock、exact replay、原子替换、回读后验与失败回滚。**写权限只由显式 mutating 子命令授予**——不带子命令的调用一律走只读路径，与是否带 `--binary`/`--json`/`--feature` 等选项无关（两侧对齐）。裸非TTY调用只读。
+- **fail-closed 平台写 gate**：仅 `production_write_gate.status === 'enabled'` 的平台（当前只有 Linux）允许 production 写；否则以 `platform_write_disabled`（exit 1）拒绝且目标字节不变。两实现都在**取 target lock、建 baseline、写盘之前**强制它，保护范围是目标二进制的两个 mutating 入口（patch/revert transaction 与 snapshot restore），store-only 操作不在其列。gate 数据驱动于 `contract/vectors/platform-writes-v1.json`（Python 侧另随 wheel 发布同一份副本，有逐字节防漂移测试锁住）。
+- **目标寻址用 canonical 路径**：写入对象与 store 身份键（`path_key`）同源于 realpath，避免 symlink 安装布局下「patch 打在 symlink 上、真实二进制未动」以及 pathKey 漂移导致 baseline 不可达（后者会让不可逆的 channels 永久无法回退）。
 - **无 shell 拼接**：`strings`（extract）、`bun build`（rebuild）、spawn 副本（cc）全走 `execFileSync`/`spawnSync` 数组参数，路径含 `$(...)` / 反引号 / `$VAR` 也不被求值。
+- **目标二进制是不可信解析输入**：由其内容解析出的 version 等字段在参与路径构造前经严格校验与净化，并校验最终产物仍位于 `refs/` 根内。
+- **错误不被吞掉**：lock 释放失败不覆盖主体错误（降级为 `releaseError` 诊断）；扩展/probe 加载或落盘失败 fail-loud 而非静默成功；平台 gate 拒绝以稳定 code 原样传播，不被重映射。
 - **行为修改入口明确**：loader-hook只承载只读探针；功能补丁由 `unbun cc` 或 `ccpatch` 各自production transaction执行，两者以共享磁盘协议互操作，不共享核心代码。
 </content>
