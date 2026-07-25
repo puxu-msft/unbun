@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | **L0** | 结构与仓库卫生 | 目录布置、git 状态、记忆失效、命名一致性 | [L0-structure-hygiene.md](L0-structure-hygiene.md) | ✅ 已完成 |
 | **L1** | 宏观架构评审 | 架构自洽性、文档间一致性（doc↔doc）、文档-代码对账（doc↔code） | [L1-macro-architecture.md](L1-macro-architecture.md) | ✅ 已完成 |
-| **L2** | 契约与互操作 | contract schemas/vectors/golden 是否名副其实、双实现是否**真等价**（假绿检测） | [L2-contract-interop.md](L2-contract-interop.md) | ⬜ 未开始 |
+| **L2** | 契约与互操作 | contract schemas/vectors/golden 是否名副其实、双实现是否**真等价**（假绿检测） | [L2-contract-interop.md](L2-contract-interop.md) | ✅ 已完成 |
 | **L3** | 微观代码 | JS 解析层 / JS 补丁器 / Python 实现 逐模块正确性 + 测试有效性 | [L3-micro-js.md](L3-micro-js.md) · [L3-micro-python.md](L3-micro-python.md) | ⬜ 未开始 |
 | **L4** | 合并态与安全边界 | static/runtime/mutate 三分是否守住、原子写/lock/codesign、集成缝、总汇总 | [L4-merged-safety.md](L4-merged-safety.md) | ⬜ 未开始 |
 
@@ -41,6 +41,7 @@
 |---|---|---|---|---|---|
 | L0 | 1 | 1 | 1 | 0 | git 首提交状态残缺（Blocker，待处理）；记忆双失效（Major，待处理） |
 | L1 | 1 | 3 | 4 | 3 | ✅ Blocker（平台假 gate）双实现已修并独立验证；L1B-04(cc run 透参)已修；A 档文档漂移 9 项已修。架构心智模型判定可信 |
+| L2 | 1 | 5 | 3 | 5 | ✅ Blocker（golden 未入库）已修并 fresh-checkout 验证。等价证据链框架可信；核心问题=Python 侧契约消费系统性弱于 JS（schema/known-bad/SHA/receiver）+ runtime-oracle gate 不可复现。修复批次待定 |
 | L2 | — | — | — | — | 待执行 |
 | L3 | — | — | — | — | 待执行 |
 | L4 | — | — | — | — | 待执行 |

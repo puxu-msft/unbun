@@ -30,7 +30,7 @@
 
 | ID | 级别 | 位置 | 问题 | 建议 | 状态 |
 |---|---|---|---|---|---|
-| L0-01 | 🔴 Blocker | git 索引 / 工作树 | 首次建档中途状态残缺：`git` 尚无 commit；150 文件已 staged，但 `docs/`、`contract/`、`.claude/`、`archive/` 与 `test/{contract,interop,patch,pty}` 整块**未跟踪**（文档、契约、近半测试不在待提交集）；同时 `lib/patch-*.mjs`、`test/patch-*.test.mjs` 在索引里是 new file、工作树里已 deleted，staged 与 worktree 自相矛盾。若现在提交，历史起点即破。 | 首次提交前理顺索引：把 docs/contract/test 子目录/archive 纳入；用 `git add` 精确 pathspec（勿 `-A`，有护栏）；把 generation-one 退役（删旧 `patch-*.mjs`）与新架构合成一致的首个提交，或拆成「引入新架构」+「退役旧实现」两个语义提交。 | 待处理 |
+| L0-01 | 🔴 Blocker → ✅ 已解决 | git 索引 / 工作树 | 首次建档中途状态残缺：`git` 尚无 commit；staged 与 worktree 自相矛盾（旧 `patch-*.mjs` staged-new 却已删）；docs/contract/近半测试未跟踪。 | ✅ 已做 git 检查点：2 个语义提交（`77a0f8a` 独立仓库首次导入含 L1 修复；`bd0f233` review 报告层）；幽灵项已消失；working tree 完全干净。不伪造历史（一代退役已完成、无前史可拆）。 | 已解决 |
 | L0-02 | 🟠 Major | `.claude/memory/` | 记忆双失效：`MEMORY.md` 为 **0 字节空文件**（索引丢失），而目录存在一条记录 `unbun-bun-sfx-toolkit.md`，内容**严重滞后**——仍写 `tools/unbun/` 旧路径、把补丁描述成「`cc patch` 就地改写 live claude + backup-revert」，与当前「shared clean baseline + 绝不写 live + 双实现」架构直接矛盾（README 明确：当前 live 三 feature 均 patched 且无 clean baseline、只允许只读 status）。 | 重写该 memory 以反映独立仓库路径与当前架构；重建 `MEMORY.md` 索引行。此为记忆卫生问题，可在 review 收尾时统一处理。 | 待处理 |
 | L0-03 | 🟡 Minor | `exp/js-tui-poc/` | 磁盘 23M / 4635 文件，观感吓人。 | 已核实 node_modules 被根 `.gitignore` 正确覆盖，`git add` 实际仅纳入 5 个源文件，符合 `keep-poc-in-project`。**非缺陷，仅记录澄清**，无需处理。 | 已澄清 |
 
