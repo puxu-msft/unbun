@@ -172,6 +172,11 @@ def _current_features(data: bytes) -> set[str]:
 
 
 def _translate_write_error(error: Exception) -> tuple[str, str, dict[str, object]]:
+    # L3C-07: 平台写 gate 的 fail-closed 拒绝（platform_write_disabled/unsupported）必须原样传播。
+    # 这些码现已进入冻结 catalog；若在此被重映射成 content_mismatch，gate 的对外可观察行为
+    # （exit 1 + 稳定 code）就与文档承诺不符，自动化也无法据此区分「平台不允许写」与「内容损坏」。
+    if isinstance(error, LineageError):
+        return error.code, str(error), {"category": "platform_write_gate", "platform_error": error.code}
     if isinstance(error, atomicio.SnapshotExists):
         return "snapshot_exists", "A snapshot with this name already exists; add --force to overwrite.", {}
     if isinstance(error, orchestrate.DependentFeatureStillEnabled):
@@ -229,8 +234,11 @@ def _translate_write_error(error: Exception) -> tuple[str, str, dict[str, object
     if isinstance(error, (ValueError, KeyError)):
         if str(error).startswith("Cannot replace "):
             return "binary_in_use", f"Cannot access binary or runtime environment: {error}", {}
+        # L3C-08: feature anchor／replay／依赖解析等普通 ValueError/KeyError 与 macOS 签名无关，
+        # 过去一律标成 codesign_failed(exit 3)，会误导自动化重试并与 JS 默认行为漂移。
+        # 归一到 content_mismatch(exit 2)，与 JS `structuredError` 的默认码一致。
         return (
-            "codesign_failed",
+            "content_mismatch",
             f"Feature action failed: {error}",
             {"category": "feature_action_failed", "error_type": type(error).__name__},
         )
@@ -572,6 +580,20 @@ def main(argv: list[str] | None = None) -> int:
         if exit_code is None:
             return _run_read_only(args, binaries)
         return exit_code
+
+    # L3C-01 (Blocker): 写权限只能由**显式 mutating 子命令**授予，绝不能由「有没有带某个选项」推导。
+    # 旧逻辑 `command = args.command or "patch"` 让 `ccpatch --binary X`（无子命令）在非 TTY 下
+    # 直接 patch 全部 feature——实测把 clean golden 从 0a067e… 改写成 3a8abf…。JS 侧同形调用是只读
+    # status。故：无子命令 ⇒ 一律走只读路径（TTY 下开 TUI，由 TUI 显式提交才写）。
+    if args.command is None:
+        binaries = _select_read_only_binaries(args)
+        if binaries is None:
+            return 1
+        if sys.stdin.isatty() and sys.stdout.isatty() and not args.json:
+            exit_code = run_tui(binaries)
+            if exit_code is not None:
+                return exit_code
+        return _run_read_only(args, binaries)
 
     binaries = _select_read_only_binaries(args)
     if binaries is None:

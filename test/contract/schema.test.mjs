@@ -350,6 +350,8 @@ describe("contract vectors", () => {
       { code: "rollback_failed", exit_code: 2, meaning: "The transaction entry bytes could not be restored after failure." },
       { code: "binary_in_use", exit_code: 3, meaning: "The binary is in use and cannot be atomically replaced." },
       { code: "codesign_failed", exit_code: 3, meaning: "macOS ad-hoc code signing failed." },
+      { code: "platform_write_unsupported", exit_code: 1, meaning: "The current platform is not a supported production write target." },
+      { code: "platform_write_disabled", exit_code: 1, meaning: "The production write gate is not enabled for the current platform." },
     ]);
   });
 

@@ -26,6 +26,8 @@ ERROR_EXIT_CODES = {
     "rollback_failed": 2,
     "binary_in_use": 3,
     "codesign_failed": 3,
+    "platform_write_unsupported": 1,
+    "platform_write_disabled": 1,
 }
 
 

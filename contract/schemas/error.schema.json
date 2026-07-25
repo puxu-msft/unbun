@@ -26,7 +26,9 @@
         "content_mismatch",
         "rollback_failed",
         "binary_in_use",
-        "codesign_failed"
+        "codesign_failed",
+        "platform_write_unsupported",
+        "platform_write_disabled"
       ]
     },
     "message": { "type": "string", "minLength": 1 },
