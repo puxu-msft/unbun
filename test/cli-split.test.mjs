@@ -28,6 +28,36 @@ beforeAll(() => {
   app = extractApp(defaultBinary()).app
 })
 
+const smallBundle = (handles) => `(function(exports){var h=(e,t)=>()=>(e&&(t=e(e=0)),t);var ${handles.map((h, i) => `${h}=h(()=>${i})`).join(',')};})`
+
+function snapshotDir(dir) {
+  return Object.fromEntries(readdirSync(dir).sort().map((name) => [name, readFileSync(join(dir, name))]))
+}
+
+test('split rerun atomically replaces the generation and removes stale module files', async () => {
+  const parent = tmp('unbun-split-rerun-')
+  const out = join(parent, 'modules')
+  await runSplit({ app: smallBundle(['a', 'b', 'c']), version: '1.0.0', outdir: out })
+  await runSplit({ app: smallBundle(['x', 'y']), version: '1.0.1', outdir: out })
+  const files = readdirSync(out).sort()
+  expect(files.filter((f) => f.endsWith('.js')).length).toBe(2)
+  expect(files.some((f) => f.includes('-a.js') || f.includes('-b.js') || f.includes('-c.js'))).toBe(false)
+  expect(JSON.parse(readFileSync(join(out, 'index.json'), 'utf8')).modules.map((m) => m.handle)).toEqual(['x', 'y'])
+})
+
+test('split publish failure leaves the previous generation byte-for-byte readable', async () => {
+  const parent = tmp('unbun-split-failure-')
+  const out = join(parent, 'modules')
+  await runSplit({ app: smallBundle(['a', 'b']), version: '1.0.0', outdir: out })
+  const before = snapshotDir(out)
+  const blocker = join(parent, '.modules.injected')
+  writeFileSync(blocker, 'not a directory')
+  await expect(runSplit({ app: smallBundle(['x']), version: '1.0.1', outdir: out, tempOutdir: blocker })).rejects.toThrow()
+  const after = snapshotDir(out)
+  expect(Object.keys(after)).toEqual(Object.keys(before))
+  for (const name of Object.keys(before)) expect(after[name].equals(before[name])).toBe(true)
+})
+
 test('split：写 per-module 文件 + index.json（count 自洽、文件都在、可重解析、esm+cjs 皆有）', async () => {
   // 走「已提取 app.js 输入」分支：把缓存 app 写进临时 app.js，split 直接读它（免二进制再读 257MB）。
   const srcDir = tmp('unbun-split-src-')

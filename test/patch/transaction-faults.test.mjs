@@ -236,13 +236,36 @@ describe('transaction rollback boundary', () => {
     expect(primary.releaseError).toEqual({ code: 'target_locked', message: 'target_locked: release failure' })
   })
 
-  test('reports lock release failure when the transaction body succeeds', async () => {
+  // L3B-02/L3B-10：此前这里断言「成功事务因 release 失败而整体 reject」，把一个缺陷固化成了契约——
+  // 事务其实已经把字节写进目标了，却报失败，调用方会误以为没写、进而做出错误的补救动作。
+  // 正确语义：写入成功就返回成功结果，release 失败降级为挂在结果上的 releaseError 告警。
+  test('surfaces lock release failure as a warning without failing a transaction that already wrote', async () => {
     const input = await transactionFixture()
     const release = new StoreError('target_locked', 'release failure', 1)
     const lock = {
       acquire: async () => ({ token: 'fault-lock' }),
       release: async () => { throw release },
     }
-    await expect(runPatchTransaction(transactionInput(input, createAtomicWriteAdapter(), { lock }))).rejects.toBe(release)
+    const result = await runPatchTransaction(transactionInput(input, createAtomicWriteAdapter(), { lock }))
+
+    expect(result).toMatchObject({ applied: ['agent-model'] })
+    expect(result.releaseError).toEqual({ code: 'target_locked', message: 'target_locked: release failure' })
+    // 字节确实落盘了——这正是不能把它报成失败的原因。
+    expect(await readFile(input.binaryPath)).not.toEqual(clean)
+  })
+
+  // 反向：主体失败时，release 失败绝不能顶替主体错误（最严重的故障必须可见）。
+  test('keeps the primary failure visible when lock release also fails', async () => {
+    const input = await transactionFixture()
+    const primary = new StoreError('rollback_failed', 'binary left corrupted', 2)
+    const release = new StoreError('target_locked', 'release failure', 1)
+    const lock = {
+      acquire: async () => ({ token: 'fault-lock' }),
+      release: async () => { throw release },
+    }
+    const atomicWrite = { publish: async () => { throw primary }, restore: async () => {} }
+
+    await expect(runPatchTransaction(transactionInput(input, atomicWrite, { lock }))).rejects.toBe(primary)
+    expect(primary.releaseError).toEqual({ code: 'target_locked', message: 'target_locked: release failure' })
   })
 })

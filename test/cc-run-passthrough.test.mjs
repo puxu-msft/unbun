@@ -44,6 +44,15 @@ test('parseCcFlags: `--` 后即使再出现 `--` 也原样保留（不二次分�
   expect(passthrough).toEqual(['a', '--', 'b'])
 })
 
+test('parseCcFlags: value option missing its value fails loudly without consuming the next flag', () => {
+  expect(() => parseCcFlags(['bin', '--ext', '--probe', 'facts'])).toThrow(/--ext.*requires a value/)
+})
+
+test('parseCcFlags: unknown and duplicate flags fail loudly', () => {
+  expect(() => parseCcFlags(['bin', '--wat', 'x'])).toThrow(/unknown option.*--wat/)
+  expect(() => parseCcFlags(['bin', '--ext', 'a.cjs', '--ext', 'b.cjs'])).toThrow(/duplicate option.*--ext/)
+})
+
 // ── ② 端到端：透传参数逐字节抵达 child argv（真 fixture 副本，无 shell）────────
 test('E2E: runCcRun 把 args（含 --开头 flag 与注入型字面量）原样送进目标脚本 argv', () => {
   const mini = cachedMiniFixture().miniPath

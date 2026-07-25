@@ -18,10 +18,28 @@ import { test, expect } from 'bun:test'
 import { basename } from 'node:path'
 import { readBinary, defaultBinary } from '../lib/bun-binary.mjs'
 import { parseModuleGraph } from '../lib/module-graph.mjs'
-import { extractApp, versionFromBlobs } from '../lib/extract.mjs'
+import { extractApp, parseVersion, versionFromBlobs } from '../lib/extract.mjs'
 import { computeLayout } from '../lib/layout.mjs'
-import { outdirName } from '../lib/naming.mjs'
+import { outdirName, refsOutdir } from '../lib/naming.mjs'
 import { cachedVersionAnchorFixture } from './fixtures/build-fixture.mjs'
+
+test('parseVersion rejects malicious non-semver values from target binary content', () => {
+  for (const version of ['x/../../tmp/pwn', '..', 'x\\..\\pwn', '2.1.0\nowned', '2.1.0\0owned']) {
+    const app = `PACKAGE_URL:"@anthropic-ai/claude-code",README_URL:"x",VERSION:${JSON.stringify(version)}`
+    expect(() => parseVersion(app)).toThrow(/invalid Claude version|semver/i)
+  }
+})
+
+test('outdirName rejects untrusted version path separators, traversal, backslashes, and controls', () => {
+  for (const version of ['x/../../tmp/pwn', '..', 'x\\..\\pwn', '2.1.0\nowned', '2.1.0\0owned']) {
+    expect(() => outdirName('/x/claude', version)).toThrow(/version|filename segment|semver/i)
+  }
+})
+
+test('refsOutdir enforces containment beneath the refs root', () => {
+  expect(refsOutdir('/repo/refs', 'claude-code-2.1.0', 'modules')).toBe('/repo/refs/claude-code-2.1.0/modules')
+  expect(() => refsOutdir('/repo/refs', '../escape')).toThrow(/outside refs root/i)
+})
 
 test('outdirName helper：version 优先、回落 basename（纯单测）', () => {
   // version 命中 → 按 version 命名（无视 basename）。

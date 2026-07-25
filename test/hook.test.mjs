@@ -60,6 +60,21 @@ test('throws when payload is longer than anchor (cannot keep equal length)', () 
   expect(() => patchLoaderHook(Buffer.from(buf), { anchor, payload })).toThrow()
 })
 
+test('rejects an empty anchor instead of entering a non-advancing search loop', () => {
+  expect(() => patchLoaderHook(Buffer.from('abc\n'), { anchor: '', payload: 'x' })).toThrow(/anchor.*non-empty/i)
+})
+
+test('validates equal length by encoded bytes rather than JavaScript code units', () => {
+  const anchor = 'é'
+  const payload = 'ab'
+  const buf = Buffer.from('é\n', 'latin1')
+  expect(() => patchLoaderHook(buf, { anchor, payload })).toThrow(/payload.*longer/i)
+})
+
+test('rejects values that cannot round-trip through latin1', () => {
+  expect(() => patchLoaderHook(Buffer.from('x\n'), { anchor: 'x', payload: '€' })).toThrow(/latin1/i)
+})
+
 test('anchor/payload are parameterizable (fixture uses its own //! anchor)', () => {
   const anchor = "//! fixture loader-hook anchor placeholder text here padding"
   const payload = 'globalThis.__CC_EXT_HOOKED__=true'

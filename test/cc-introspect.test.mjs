@@ -12,7 +12,7 @@
 // fixture `mini` 是 ~94MB 构建产物（bun --compile 打包整个 bun 运行时），**不入库**：本测试在
 //   临时目录即时 build，afterAll 清理。build-fixture.mjs 是 entry.js/tiny.txt/锚的唯一真相源。
 import { test, expect, beforeAll, afterAll } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync, existsSync, statSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, existsSync, statSync, readFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, basename } from 'node:path'
 import { parseModuleGraph } from '../lib/module-graph.mjs'
@@ -145,6 +145,48 @@ test('cc run: patches a copy, injects CC_EXT, captures probe stdout; live binary
   expect(res.stdout).toContain('CC_RUN_MARKER')
   // 原始 mini 未被改动（只读 + 只对临时副本打桩）
   expect(statSync(mini).size).toBe(beforeSize)
+}, 30_000)
+
+test('cc run: missing extension fails loudly with the original module error visible', () => {
+  const missing = join(tmp('unbun-missing-ext-'), 'does-not-exist.cjs')
+  const res = runCcRun({ bin: mini, ext: missing, anchor: FIXTURE_ANCHOR })
+  expect(res.status).not.toBe(0)
+  expect(res.stderr).toContain('does-not-exist.cjs')
+}, 30_000)
+
+test('cc run: extension top-level throw fails loudly with the original error visible', () => {
+  const ext = join(tmp('unbun-throw-ext-'), 'throw.cjs')
+  writeFileSync(ext, "throw new Error('UNBUN_TOP_LEVEL_THROW')\n")
+  const res = runCcRun({ bin: mini, ext, anchor: FIXTURE_ANCHOR })
+  expect(res.status).not.toBe(0)
+  expect(res.stderr).toContain('UNBUN_TOP_LEVEL_THROW')
+}, 30_000)
+
+test('cc introspect facts: unwritable output target is a failure, not a success marker', () => {
+  const out = tmp('unbun-facts-write-fail-')
+  const blocker = join(out, 'facts.json')
+  mkdirSync(blocker)
+  expect(() => runCcIntrospect({ bin: mini, probe: 'facts', outdir: out, anchor: FIXTURE_ANCHOR })).toThrow(/facts|write|status/i)
+}, 30_000)
+
+test('cc introspect graph: unwritable output target is a failure, not a success marker', () => {
+  const out = tmp('unbun-graph-write-fail-')
+  const blocker = join(out, 'module-graph.json')
+  mkdirSync(blocker)
+  expect(() => runCcIntrospect({ bin: mini, probe: 'graph', outdir: out, anchor: FIXTURE_ANCHOR })).toThrow(/graph|write|status/i)
+}, 30_000)
+
+test('cc introspect rejects a successful child marker for the wrong probe', () => {
+  const ext = join(tmp('unbun-wrong-probe-'), 'wrong.cjs')
+  writeFileSync(ext, 'console.log("UNBUN_PROBE_JSON " + JSON.stringify({probe:"assets",files:[]})); process.exit(0)\n')
+  const payload = `process.env.CC_EXT&&require(process.env.CC_EXT)`
+  expect(() => runCcIntrospect({ bin: mini, probe: 'facts', anchor: FIXTURE_ANCHOR, payload, args: ['--version'], script: ext })).toThrow()
+}, 30_000)
+
+test('cc introspect assets rejects markers whose reported output files are missing', () => {
+  const ext = join(tmp('unbun-missing-output-'), 'missing.cjs')
+  writeFileSync(ext, 'console.log("UNBUN_PROBE_JSON " + JSON.stringify({probe:"assets",files:[{name:"missing.bin"}]})); process.exit(0)\n')
+  expect(() => runCcIntrospect({ bin: mini, probe: 'assets', anchor: FIXTURE_ANCHOR, script: ext })).toThrow(/expected output missing/i)
 }, 30_000)
 
 test('cc introspect facts + graph: structured runtime facts; graph honest about --compile limitation', () => {

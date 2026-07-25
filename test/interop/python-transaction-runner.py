@@ -81,12 +81,26 @@ def execute(request: dict) -> dict:
             ]
         }
     elif action == "snapshot-restore":
-        result = orchestrate.restore_snapshot(
-            binary,
-            request["snapshot"],
-            snapshot_version=request.get("version"),
-            confirmed=request.get("force", False),
-        )
+        # 跨版本 restore 是两阶段的（L3C-05 修复 TOCTOU 后）：第一次调用会抛出携带绑定 payload 的
+        # CrossVersionSnapshotWarning，确认时必须把**同一份** payload 交回；期间目标或 snapshot
+        # 发生变化会被拒绝。这里复刻 CLI 的两阶段流程，而不是直接 confirmed=True——后者已被拒绝
+        # （"cross-version confirmation requires a bound confirmation payload"）。
+        try:
+            result = orchestrate.restore_snapshot(
+                binary,
+                request["snapshot"],
+                snapshot_version=request.get("version"),
+            )
+        except orchestrate.CrossVersionSnapshotWarning as warning:
+            if not request.get("force", False):
+                raise
+            result = orchestrate.restore_snapshot(
+                binary,
+                request["snapshot"],
+                snapshot_version=request.get("version"),
+                confirmed=True,
+                confirmation=warning.confirmation,
+            )
     elif action == "snapshot-rm":
         result = snapshots.remove(
             binary,

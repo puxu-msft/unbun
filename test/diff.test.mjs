@@ -7,6 +7,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { diffModuleSets } from '../lib/diff.mjs'
+import { splitModules } from '../lib/split.mjs'
 import { runDiff } from '../cli.mjs'
 
 // 合成一条 index 模块记录：seq/handle/kind/bytes + 自洽的 start/end/file（diff 只看 kind/bytes/handle）。
@@ -115,6 +116,16 @@ test('E5 向后兼容 + 非空证：同 fixtures 去掉 hash → 回落 (kind,by
   expect(d.renamed.length).toBe(2) // (kind,bytes) 近似身份的固有误配
   expect(d.removed.length).toBe(0)
   expect(d.added.length).toBe(0)
+})
+
+test('production path: splitModules on handle-only renames produces renamed entries', () => {
+  const helper = 'var h=(e,t)=>()=>(e&&(t=e(e=0)),t);'
+  const a = splitModules(`(function(exports){${helper}var a=h(()=>1),b=h(()=>2);})`)
+  const b = splitModules(`(function(exports){${helper}var x=h(()=>1),y=h(()=>2);})`)
+  const d = diffModuleSets(a, b)
+  expect(d.renamed.map((r) => [r.oldHandle, r.newHandle])).toEqual([['a', 'x'], ['b', 'y']])
+  expect(d.added).toEqual([])
+  expect(d.removed).toEqual([])
 })
 
 test('E5：hash 精确 rename —— handle 变、内容(hash)同 → renamed', () => {

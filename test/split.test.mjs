@@ -20,6 +20,32 @@ beforeAll(() => {
   split = splitModules(app)
 })
 
+function bundle(body) {
+  return `(function(exports){${body}})`
+}
+
+const esmDefinition = (name) => `var ${name}=(e,t)=>()=>(e&&(t=e(e=0)),t);`
+const cjsDefinition = (name) => `var ${name}=(e,t)=>()=>(t||e((t={exports:{}}).exports,t),t.exports);`
+
+test('synthetic: top-level lookalike calls without a helper definition are excluded', () => {
+  const result = splitModules(bundle('var A=f(()=>1),B=f(()=>2);'))
+  expect(result.modules).toEqual([])
+  expect(result.helpers).toEqual({ esm: [], cjs: [] })
+})
+
+test('synthetic: mixed callback arity for a recognized helper fails loudly', () => {
+  const source = bundle(esmDefinition('h') + 'var A=h(()=>1),B=h((exports)=>2);')
+  expect(() => splitModules(source)).toThrow(/helper.*arity|mixed.*arity/i)
+})
+
+test('synthetic: renamed helpers with the same definitions are discovered by semantics', () => {
+  for (const [esm, cjs] of [['E', 'Q'], ['x1', 'z9']]) {
+    const result = splitModules(bundle(esmDefinition(esm) + cjsDefinition(cjs) + `var A=${esm}(()=>1),B=${esm}(()=>2),C=${cjs}((exports)=>1),D=${cjs}((exports,module)=>2);`))
+    expect(result.helpers).toEqual({ esm: [esm], cjs: [cjs] })
+    expect(result.modules.map((m) => m.kind)).toEqual(['esm', 'esm', 'cjs', 'cjs'])
+  }
+})
+
 test('discovers exactly the two real helper families; excludes body-local lookalikes', () => {
   const { modules, helpers } = split
   // 正向：两族均识别到，且 helper 集合规模有界（不该把 45 个 memoizer 全认成 helper）
@@ -96,7 +122,7 @@ test('M2 discriminant: high-frequency body-local memoizer lookalikes are never t
 }, 30000) // 二次解析 ~19MB app + 全深度 walk，放宽超时（默认 5s 不够）
 
 // E5 = A6：每模块带**内容哈希**（sha256 前 16 hex），作 diff 的精确身份。断言：① 每模块 hash 是
-// 16 位小写 hex；② 稳定（同输入同 hash）；③ 是真·内容哈希（独立 oracle 重算 sha256(app.slice) 一致）。
+// 16 位小写 hex；② 稳定（同输入同 hash）；③ 是归一化初始化表达式哈希（排除 declarator handle）。
 test('E5：每模块有稳定内容哈希（16 hex、同输入同 hash、== 独立 sha256 重算）', () => {
   const a = split // 缓存的首次运行结果
   const b = splitModules(app) // **独立**重算一次：与 a 比对才能非空地证「同输入同 hash」（确定性）
@@ -106,8 +132,10 @@ test('E5：每模块有稳定内容哈希（16 hex、同输入同 hash、== 独�
     const m = a.modules[i]
     expect(m.hash).toMatch(/^[0-9a-f]{16}$/) // 16 位小写 hex
     expect(m.hash).toBe(b.modules[i].hash) // 稳定：同输入同 hash
-    // 独立 oracle：hash 确为模块源字节 app.slice(start,end) 的 sha256 前 16 hex（非某派生量）。
-    const oracle = createHash('sha256').update(app.slice(m.start, m.end)).digest('hex').slice(0, 16)
+    // 独立 oracle：去掉 declarator handle 与等号后，对初始化表达式字节做 sha256。
+    const declarator = app.slice(m.start, m.end)
+    const init = declarator.slice(declarator.indexOf('=') + 1)
+    const oracle = createHash('sha256').update(init).digest('hex').slice(0, 16)
     expect(m.hash).toBe(oracle)
   }
 }, 30000)
