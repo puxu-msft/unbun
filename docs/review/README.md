@@ -39,7 +39,7 @@
 
 | 层 | 🔴 | 🟠 | 🟡 | 🔵 | 小结 |
 |---|---|---|---|---|---|
-| L0 | 1 | 1 | 1 | 0 | git 首提交状态残缺（Blocker，待处理）；记忆双失效（Major，待处理） |
+| L0 | 1 | 1 | 1 | 0 | ✅ **全部已解决**：git 首提交状态残缺（Blocker，已建 2 个语义提交）；记忆双失效（Major，已重写并显式作废旧模型） |
 | L1 | 1 | 3 | 4 | 3 | ✅ Blocker（平台假 gate）双实现已修并独立验证；L1B-04(cc run 透参)已修；A 档文档漂移 9 项已修。架构心智模型判定可信 |
 | L2 | 1 | 5 | 3 | 5 | ✅ **全部已修**：Blocker（golden 未入库）+ Python 契约对齐（schema 全量/catalog 完整冻结/known-bad/SHA/receiver identity）+ runtime-oracle 环境探测 + 计数。等价证据链框架经正向对照证实可信。JS 408/0、Python 404 全绿 |
 | L2 | — | — | — | — | 待执行 |
