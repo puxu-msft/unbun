@@ -6,7 +6,8 @@
   "frozen_at": "2026-07-25",
   "aggregation_rule": {
     "production_write_gate": "enabled only when format_exact_replay=proven, shared_store_transaction=proven, runtime_execution_oracle=proven, source_exec_dependency_evidence=resolved, and a production write implementation exists",
-    "fail_closed": true
+    "fail_closed": true,
+    "scope": "The gate governs mutation of the target Claude binary only: the patch/revert transaction and snapshot restore. Store-only operations (snapshot save/rm, lock inspect/cleanup, baseline publication) are not gated because they never rewrite the target binary. Both implementations enforce it at exactly those two entry points, before acquiring the target lock or creating any baseline."
   },
   "platforms": {
     "linux": {
