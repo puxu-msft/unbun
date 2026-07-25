@@ -4,18 +4,19 @@
 // 只解剖 Claude Code 的 Bun --compile SFX，全程纯读 + esbuild + strings，**绝不执行目标二进制**。
 // 本任务实现 extract；其余子命令（assets/split/layout/diff/rebuild/cc）留占位提示，后续 task 填。
 import {
-  writeFileSync, readFileSync, mkdirSync, existsSync, openSync, closeSync,
-  statSync, chmodSync, rmSync, mkdtempSync,
+  writeFileSync, readFileSync, mkdirSync, existsSync, openSync, closeSync, readdirSync,
+  statSync, chmodSync, rmSync, mkdtempSync, renameSync,
 } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { execFileSync, spawnSync, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { dirname, join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defaultBinary, readBinary, bufferReader } from './lib/bun-binary.mjs'
 import { parseModuleGraph } from './lib/module-graph.mjs'
 import { extractApp, versionFromBlobs } from './lib/extract.mjs'
-import { outdirName, uniqueAssetName } from './lib/naming.mjs'
+import { outdirName, refsOutdir, uniqueAssetName } from './lib/naming.mjs'
 import { splitModules } from './lib/split.mjs'
 import { beautify } from './lib/beautify.mjs'
 import { computeLayout, formatLayout } from './lib/layout.mjs'
@@ -61,7 +62,7 @@ export async function runExtract({ bin, outdir } = {}) {
   bin = bin || defaultBinary()
   console.error(`[extract] reading ${bin}`)
   const { app, version, blob } = extractApp(bin)
-  outdir = (outdir || join(repoRoot(), 'refs', outdirName(bin, version))).replace(/\/$/, '')
+  outdir = (outdir || refsOutdir(join(repoRoot(), 'refs'), outdirName(bin, version))).replace(/\/$/, '')
   mkdirSync(outdir, { recursive: true })
 
   // strings 走无 shell 的 spawn（数组参数）+ fd 直写：不起 shell → bin 路径不经 shell quoting，
@@ -131,7 +132,7 @@ export async function runExtract({ bin, outdir } = {}) {
 // 调用点（dispatch case 'split' / 测试）须 await（否则漏 await 竞态、假绿）。
 // 测试可传 { app, version } 复用缓存、免重复读 257MB 二进制。stderr 打印进度，不污染 stdout。
 // 返回 { outdir, index } 便于测试断言与后续子命令消费。
-export async function runSplit({ input, outdir, app, version } = {}) {
+export async function runSplit({ input, outdir, app, version, tempOutdir } = {}) {
   if (app == null) {
     input = input || defaultBinary()
     if (input.endsWith('.js')) {
@@ -151,8 +152,10 @@ export async function runSplit({ input, outdir, app, version } = {}) {
   // 已在上面从权威锚（二进制）或 basename(app.js) 推出；仍为空时 outdirName 回落 basename(input)（app.js /
   // 二进制路径均合理），纯内存 app（无 input、无 version）才落到字面 'app'（无路径可 basename）。
   const { modules, helpers } = splitModules(app)
-  outdir = (outdir || join(repoRoot(), 'refs', outdirName(input || 'app', version), 'modules')).replace(/\/$/, '')
-  mkdirSync(outdir, { recursive: true })
+  outdir = (outdir || refsOutdir(join(repoRoot(), 'refs'), outdirName(input || 'app', version), 'modules')).replace(/\/$/, '')
+  mkdirSync(dirname(outdir), { recursive: true })
+  const staging = tempOutdir || mkdtempSync(join(dirname(outdir), `.${basename(outdir)}.tmp-`))
+  if (tempOutdir) mkdirSync(staging, { recursive: true })
 
   // seq 前缀补零宽度：≥5 位（Claude ~6000 模块恒 5 位），任意大 SFX 按 count 加宽，保 lexical 排序不塌。
   const pad = Math.max(5, String(Math.max(0, modules.length - 1)).length)
@@ -163,7 +166,7 @@ export async function runSplit({ input, outdir, app, version } = {}) {
     // handle 罕见含文件系统非法字符 → sanitize 成 `_`（仅影响文件名，index.handle 仍存原名）。
     const safeHandle = m.handle.replace(/[^A-Za-z0-9._$-]/g, '_')
     const file = `${String(m.seq).padStart(pad, '0')}-${safeHandle}.js`
-    writes.push([join(outdir, file), app.slice(m.start, m.end)]) // 该模块源 `X=<helper>(…)`
+    writes.push([join(staging, file), app.slice(m.start, m.end)]) // 该模块源 `X=<helper>(…)`
     indexModules.push({
       seq: m.seq,
       handle: m.handle,
@@ -176,16 +179,40 @@ export async function runSplit({ input, outdir, app, version } = {}) {
     })
   }
 
-  // 分批并发写：每批 ≤512 个并发 writeFile，批间串行 await，控住并发 fd 数、防 EMFILE。
-  const BATCH = 512
-  for (let i = 0; i < writes.length; i += BATCH) {
-    const batch = writes.slice(i, i + BATCH)
-    await Promise.all(batch.map(([p, data]) => writeFile(p, data)))
-  }
-
   const index = { version: version || 'app', helpers, count: modules.length, modules: indexModules }
-  const indexPath = join(outdir, 'index.json')
-  await writeFile(indexPath, JSON.stringify(index, null, 2) + '\n')
+  try {
+    // 分批并发写：每批 ≤512 个并发 writeFile，批间串行 await，控住并发 fd 数、防 EMFILE。
+    const BATCH = 512
+    for (let i = 0; i < writes.length; i += BATCH) {
+      const batch = writes.slice(i, i + BATCH)
+      await Promise.all(batch.map(([p, data]) => writeFile(p, data)))
+    }
+    await writeFile(join(staging, 'index.json'), JSON.stringify(index, null, 2) + '\n')
+    const stagedFiles = readdirSync(staging)
+    if (stagedFiles.length !== modules.length + 1) throw new Error(`split: staged file count ${stagedFiles.length} != expected ${modules.length + 1}`)
+    for (const m of indexModules) {
+      const data = readFileSync(join(staging, m.file))
+      const hash = createHash('sha256').update(data.subarray(data.indexOf(0x3d) + 1)).digest('hex').slice(0, 16)
+      if (hash !== m.hash) throw new Error(`split: staged hash mismatch for ${m.file}`)
+    }
+
+    const backup = `${outdir}.old-${process.pid}-${Date.now()}`
+    let backedUp = false
+    try {
+      if (existsSync(outdir)) {
+        renameSync(outdir, backup)
+        backedUp = true
+      }
+      renameSync(staging, outdir)
+      if (backedUp) rmSync(backup, { recursive: true, force: true })
+    } catch (error) {
+      if (!existsSync(outdir) && backedUp && existsSync(backup)) renameSync(backup, outdir)
+      throw error
+    }
+  } catch (error) {
+    if (existsSync(staging) && staging !== outdir) rmSync(staging, { recursive: true, force: true })
+    throw error
+  }
 
   const esm = modules.filter((m) => m.kind === 'esm').length
   const cjs = modules.filter((m) => m.kind === 'cjs').length
@@ -225,7 +252,7 @@ export function runAssets({ bin, outdir, blobs: injBlobs, buf: injBuf } = {}) {
     version = versionFromBlobs(reader, blobs)
   }
   try {
-    outdir = (outdir || join(repoRoot(), 'refs', outdirName(bin, version), 'assets')).replace(/\/$/, '')
+    outdir = (outdir || refsOutdir(join(repoRoot(), 'refs'), outdirName(bin, version), 'assets')).replace(/\/$/, '')
     mkdirSync(outdir, { recursive: true })
 
     const used = new Set() // 已用文件名集：uniqueAssetName 用它消歧同名 basename，保每 blob 都写出、不覆盖
@@ -257,7 +284,7 @@ export function runLayout({ bin, outdir } = {}) {
 
   // E3 = A4：用 computeLayout 已从入口 blob 解出的 layout.version（不重读二进制）→ outdirName 统一命名
   // `claude-code-<version>`（旧版只用 basename(bin)，与 extract/assets 的 version 命名在换名副本下分裂）。
-  outdir = (outdir || join(repoRoot(), 'refs', outdirName(bin, layout.version))).replace(/\/$/, '')
+  outdir = (outdir || refsOutdir(join(repoRoot(), 'refs'), outdirName(bin, layout.version))).replace(/\/$/, '')
   mkdirSync(outdir, { recursive: true })
   const layoutPath = join(outdir, 'layout.json')
   writeFileSync(layoutPath, JSON.stringify(layout, null, 2) + '\n')
@@ -442,21 +469,34 @@ export function parseProbeJson(stdout) {
 // cc introspect <bin> --probe assets|graph|facts [--out <dir>]
 //   = cc run + 内置 probe（lib/probes/<probe>.cjs）。probe 落盘到 outdir（DUMP_DIR/FACTS_OUT/GRAPH_OUT）
 //   并向 stdout 吐 UNBUN_PROBE_JSON。返回 { outdir, probe, result, status, stdout, stderr }。
-export function runCcIntrospect({ bin, probe, outdir, anchor, payload, args } = {}) {
+export function runCcIntrospect({ bin, probe, outdir, anchor, payload, args, script: injectedScript } = {}) {
   const rel = CC_PROBES[probe]
   if (!rel) throw new Error(`cc introspect: unknown probe '${probe}' (use: ${Object.keys(CC_PROBES).join('|')})`)
-  const script = probeScript(rel)
+  const script = injectedScript || probeScript(rel)
   if (!existsSync(script)) throw new Error(`cc introspect: probe script missing: ${script}`)
   outdir = (outdir || mkdtempSync(join(tmpdir(), `unbun-probe-${probe}-`))).replace(/\/$/, '')
   mkdirSync(outdir, { recursive: true })
   const env = {}
+  let expectedPath = null
   if (probe === 'assets') env.DUMP_DIR = outdir
-  if (probe === 'facts') env.FACTS_OUT = join(outdir, 'facts.json')
-  if (probe === 'graph') env.GRAPH_OUT = join(outdir, 'module-graph.json')
+  if (probe === 'facts') env.FACTS_OUT = expectedPath = join(outdir, 'facts.json')
+  if (probe === 'graph') env.GRAPH_OUT = expectedPath = join(outdir, 'module-graph.json')
   console.error(`[cc] introspect ${probe} on ${bin}`)
   const res = runCcRun({ bin, ext: script, anchor, payload, env, args })
+  if (res.signal) throw new Error(`cc introspect ${probe}: child terminated by signal ${res.signal}${res.stderr ? `\n${res.stderr}` : ''}`)
+  if (res.status !== 0) throw new Error(`cc introspect ${probe}: child exited with status ${res.status}${res.stderr ? `\n${res.stderr}` : ''}`)
   const result = parseProbeJson(res.stdout)
-  console.error(`[cc] introspect ${probe} → ${outdir}${result ? ` (${(result.files || result.embeddedFiles || []).length} embedded)` : ' (no probe json parsed)'}`)
+  if (!result) throw new Error(`cc introspect ${probe}: child succeeded without UNBUN_PROBE_JSON marker`)
+  if (result.probe !== probe) throw new Error(`cc introspect ${probe}: marker reported probe ${JSON.stringify(result.probe)}`)
+  if (expectedPath && !existsSync(expectedPath)) throw new Error(`cc introspect ${probe}: expected output missing: ${expectedPath}`)
+  if (probe === 'assets') {
+    for (const file of result.files ?? []) {
+      if (!file?.name || basename(file.name) !== file.name || !existsSync(join(outdir, file.name))) {
+        throw new Error(`cc introspect assets: expected output missing: ${file?.name ?? '<unnamed>'}`)
+      }
+    }
+  }
+  console.error(`[cc] introspect ${probe} → ${outdir} (${(result.files || result.embeddedFiles || []).length} embedded)`)
   return { outdir, probe, result, status: res.status, stdout: res.stdout, stderr: res.stderr }
 }
 
@@ -466,17 +506,30 @@ export function parseCcFlags(args) {
   const positional = []
   const flags = {}
   const passthrough = []
+  const booleanOptions = new Map([
+    ['--force', 'force'], ['--check', 'check'], ['--revert', 'revert'], ['--all', 'all'], ['--full', 'full'], ['--yes', 'yes'], ['-y', 'yes'],
+  ])
+  const valueOptions = new Map([['--out', 'out'], ['--ext', 'ext'], ['--probe', 'probe']])
+  const setFlag = (spelling, key, value) => {
+    if (Object.hasOwn(flags, key)) throw new Error(`duplicate option ${spelling}`)
+    flags[key] = value
+  }
   for (let i = 0; i < args.length; i++) {
     const a = args[i]
     if (a === '--') { passthrough.push(...args.slice(i + 1)); break }
-    else if (a === '--force') flags.force = true
-    else if (a === '--check') flags.check = true
-    else if (a === '--revert') flags.revert = true
-    else if (a === '--all') flags.all = true
-    else if (a === '--full') flags.full = true
-    else if (a === '--yes' || a === '-y') flags.yes = true
-    else if (a.startsWith('--')) flags[a.slice(2)] = args[++i]
-    else positional.push(a)
+    if (booleanOptions.has(a)) {
+      setFlag(a, booleanOptions.get(a), true)
+      continue
+    }
+    if (valueOptions.has(a)) {
+      const value = args[i + 1]
+      if (value == null || value.startsWith('-')) throw new Error(`${a} requires a value`)
+      setFlag(a, valueOptions.get(a), value)
+      i++
+      continue
+    }
+    if (a.startsWith('-')) throw new Error(`unknown option ${a}`)
+    positional.push(a)
   }
   return { positional, flags, passthrough }
 }
@@ -514,7 +567,12 @@ export async function runCc(args) {
         process.exitCode = 1
         return
       }
-      return runCcIntrospect({ bin, probe: flags.probe, outdir: flags.out })
+      try {
+        return runCcIntrospect({ bin, probe: flags.probe, outdir: flags.out })
+      } catch (error) {
+        process.exitCode = 1
+        throw error
+      }
     }
   }
 }
