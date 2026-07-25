@@ -1,0 +1,1 @@
+- [unbun Bun SFX 工具箱](unbun-bun-sfx-toolkit.md) — 独立仓库定位、Bun 格式事实定居点、JS+Python 双实现补丁器与 clean-baseline/fail-closed-gate 不变量
