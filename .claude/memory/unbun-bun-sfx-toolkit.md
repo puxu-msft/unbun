@@ -22,4 +22,6 @@ metadata:
 
 **写权限只由显式 mutating 子命令授予**（`patch`/`revert`/snapshot restore），不带子命令一律只读，与是否带 `--binary`/`--json`/`--feature` 无关。
 
+**验收判据：只有干净 checkout 能证明全绿**。本机 `bun test` 绿只说明「工作树 + 本机残留」可用。本轮两次踩中：① golden fixture 被 `*.bin` 忽略从未入库；② 用精确 pathspec 提交时漏掉仓库根的 `cli.mjs`（91 行修复只在工作树）——两次都是本机 450/0、干净副本却失败。收尾务必 `git archive HEAD` 解出副本、装依赖、跑双侧全量。
+
 **首轮系统性 review 的结论与修复记录在 `docs/review/`**（分层 L0-L4，README 是索引与状态表）。相关：[[knowledge-routing-docs-vs-memory]]；大 bundle 逆向属 fan-out，应外包并发 agent、主线只做紧耦合实现。
