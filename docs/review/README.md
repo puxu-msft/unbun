@@ -16,6 +16,7 @@
 | **L2** | 契约与互操作 | contract schemas/vectors/golden 是否名副其实、双实现是否**真等价**（假绿检测） | [L2-contract-interop.md](L2-contract-interop.md) | ✅ 已完成 |
 | **L3** | 微观代码 | JS 解析层 / JS 补丁器 / Python 实现 逐模块正确性 + 测试有效性 | [L3-micro-js.md](L3-micro-js.md) · [L3-micro-python.md](L3-micro-python.md) | ✅ 已完成 |
 | **L4** | 合并态与安全边界 | static/runtime/mutate 三分是否守住、原子写/lock/codesign、集成缝、总汇总 | [L4-merged-safety.md](L4-merged-safety.md) | ✅ 已完成 |
+| **L5** | 探测性能与窗口化正确性 | `cc` 加载慢的根因排查；单站点守卫掩盖的两个正确性缺陷 | [L5-probe-performance.md](L5-probe-performance.md) | ✅ 已完成 |
 
 推进原则：
 - **宏观先行**：L1 先确认架构与文档自洽，避免在错误的心智模型上做微观评审。

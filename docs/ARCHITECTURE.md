@@ -104,6 +104,7 @@ flowchart TD
 - **diff** 独立于二进制，吃两个 split 产物的 `index.json`（纯数据）。
 - **cc introspection**：`binary → 临时副本 → hook 等长打桩 → bun spawn（CC_EXT=probe）→ 收集 stdout → 删副本`。对 live binary 全程只读。
 - **cc patch manager**：两个公开实现各自 probe 当前 bytes，使用同一 shared store identity 与 baseline，exact replay证明build lineage后原子替换；另一实现可以继续消费同一baseline/snapshot/lock。
+- **windowed probe**：`probe_windows`（锚点 census 开小窗）→ 合并读入 → `candidateRanges`（每个已发现站点 ±8,000）→ `candidatesComplete`（候选必须完整落在已读窗内，否则 fail-closed 回落 full detect）→ `detect_windows`。整读 268MB 的 `toString('latin1')` 每次约 200ms，所以「能不能走窗口化」直接决定 `cc` 的体感速度。两条不变量：**windowed 与 full 的 `state`/`sites`/substates（含 identity）必须逐项相等**；带跨窗语义的 feature（channels）必须先跨窗合并原始站点、再一次性定序号与 absent 占位，单窗视角判不出「站点真缺失」还是「站点在别的窗里」。
 
 ## seam 说明（bun-binary vs module-graph）
 
