@@ -62,4 +62,19 @@ describe('channels optional-site absence (L3B-03)', () => {
 
     expect(() => channels.replay_substates(Buffer.from(clean), forged)).toThrow(/absent/)
   })
+
+  test('an absent placeholder replays regardless of its offset', () => {
+    // absent 占位不对应任何字节：replay 遇到它直接跳过，从不读它的 offset/length。但占位的
+    // offset 取自 `bytes.length`，会随输入长度漂移——窗口化观测得到的是窗口末端，full detect
+    // 得到的是整个二进制的长度。让这个**无语义**的数值参与 validateReplay 的严格相等校验，
+    // 会在 optional 站点缺失的 build 上抛 substate_unreplayable，阻断所有 feature 的写入。
+    // 因此 absent 记录只校验 identity 与「双方都缺失」，不校验 offset/length。
+    const variant = withoutSite('tengu_harbor_permissions')
+    const observed = channels.observe_substates(variant)
+    const drifted = observed.map((site) => (site.state === 'absent' ? { ...site, offset: site.offset + 1_000_000 } : site))
+
+    const result = channels.replay_substates(Buffer.from(variant), drifted)
+    expect(result.edits).toBe(0)
+    expect(result.bytes.equals(variant)).toBe(true)
+  })
 })
