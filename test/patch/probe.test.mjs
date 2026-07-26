@@ -283,11 +283,13 @@ describe('Claude windowed probe', () => {
     const reader = spyReader(bytes)
     const channels = claudeFeatureRegistry.get('channels')
     const detectedLengths = []
+    let windowed
     const feature = {
       ...channels,
       detect_windows(windows) {
         detectedLengths.push(...windows.map((window) => window.bytes.length))
-        return channels.detect_windows(windows)
+        windowed = channels.detect_windows(windows)
+        return windowed
       },
     }
 
@@ -300,6 +302,11 @@ describe('Claude windowed probe', () => {
     expect(result.features.channels).toEqual(fullStatus(channels, bytes))
     expect(detectedLengths.length).toBeGreaterThan(1)
     expect(detectedLengths.reduce((sum, length) => sum + length, 0)).toBeLessThanOrEqual(80_000)
+    // 此前这条测试是 false green：它只因为 detect_windows 返回 null、probe 回落整读才通过，
+    // 从未证明窗口化路径真的成立。这个 fixture 只有 21MB（不足 64MB 尾窗阈值），discovery
+    // 窗本就覆盖全文件，「有没有整读」区分不出快慢路径；改为钉住 detect_windows 必须给出
+    // 结论——返回 null 就等于回落 full detect。
+    expect(windowed).not.toBeNull()
   })
 
   test('falls back when candidates are incomplete and shares one full read across features', () => {
