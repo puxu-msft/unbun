@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { claudeFeatureRegistry } from '../../lib/patch/targets/claude/index.mjs'
-import { inspectClaudeBytes, probeClaudeBinary } from '../../lib/patch/targets/claude/probe.mjs'
+import { inspectClaudeBytes, normalizeSubstates, probeClaudeBinary } from '../../lib/patch/targets/claude/probe.mjs'
+import { bufferReader } from '../../lib/io/raw-reader.mjs'
 
 const ROOT = path.resolve(import.meta.dir, '../..')
 const VECTOR_ROOT = path.join(ROOT, 'contract', 'vectors', 'feature-claude-v1', 'fixtures')
@@ -128,6 +129,26 @@ describe('Claude windowed probe', () => {
       ))
       expect(reader.closes, name).toBe(1)
       if (name.startsWith('golden/')) expect(result.version, name).toBe('2.1.175')
+    }
+  })
+
+  test('keeps windowed substate identities equal to full detection for single-site kinds', () => {
+    // 回归：normalizeSubstates 曾在某 kind 只有一个站点时丢掉序号（windowed 得
+    // `agent-model:schema`，full 得 `agent-model:schema:0`），并靠各 feature 的
+    // `sites.length === 1 → null` 守卫回落 full detect 来掩盖。守卫一旦移除，id 分歧
+    // 会经 validateReplay 的 identity 比较炸成 substate_unreplayable。
+    // absent 占位（`channels:*:absent`）不带数字序号，归一化必须豁免它们，否则会被
+    // 补成 `...:absent:0`。
+    for (const [name, bytes] of corpus()) {
+      for (const feature of claudeFeatureRegistry.features()) {
+        const windows = (feature.probe_windows(bufferReader(bytes)) ?? []).map(([start, end]) => ({
+          offset: start,
+          bytes: bytes.subarray(start, end),
+        }))
+        if (windows.length === 0) continue
+        expect(normalizeSubstates(feature, windows).map((record) => record.id), `${name}/${feature.name}`)
+          .toEqual(feature.observe_substates(bytes).map((record) => record.id))
+      }
     }
   })
 
