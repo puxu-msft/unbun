@@ -23,11 +23,26 @@ describe('source-exec feature', () => {
     }
   })
 
-  test('probes both discovery ends and detects absolute offsets in windows', () => {
-    expect(sourceExecFeature.probe_windows({ size: 80_000_000 })).toEqual([[0, 32_000_000], [48_000_000, 80_000_000]])
+  test('censuses anchors across the whole file and detects absolute offsets in windows', () => {
+    // discovery 不再是「首尾各 32MB」的固定窗，而是全文件锚点 census + 每个命中开 ±8,000 小窗。
+    // 只给 size、没有 reader 时无法 census，退回整窗由调用方保证完整性。
+    expect(sourceExecFeature.probe_windows({ size: 80_000_000 })).toEqual([[0, 80_000_000]])
+
+    const tag = Buffer.from('// @bun @bytecode', 'latin1')
+    const bytes = Buffer.alloc(80_000_000)
+    tag.copy(bytes, 32)
+    tag.copy(bytes, 40_000_000)   // 中段：旧的首尾窗口会漏掉它
+    tag.copy(bytes, 79_999_000)
+    const reader = { size: bytes.length, slice: (offset, length) => bytes.subarray(offset, offset + length) }
+    expect(sourceExecFeature.probe_windows(reader)).toEqual([
+      [0, 8_050],
+      [39_992_000, 40_008_018],
+      [79_991_000, 80_000_000],
+    ])
+
     const windows = [
-      { offset: 0, bytes: Buffer.concat([Buffer.alloc(32), Buffer.from('// @bun @bytecode', 'latin1')]) },
-      { offset: 79_999_000, bytes: Buffer.from('// @bun @bytecode', 'latin1') },
+      { offset: 0, bytes: Buffer.concat([Buffer.alloc(32), tag]) },
+      { offset: 79_999_000, bytes: tag },
     ]
     expect(sourceExecFeature.detect_windows(windows)).toEqual(expected.results['first-tail-multi-tag'])
   })

@@ -4,6 +4,7 @@
     "first-tail-multi-tag": { "state": "clean", "sites": [39, 79999007] },
     "32mb-boundary": { "state": "clean", "sites": [31999988, 38000008] },
     "overlapping-windows": { "state": "clean", "sites": [19999997] },
+    "mid-file-blind-spot": { "state": "clean", "sites": [1007, 100000007, 199000007] },
     "clean": { "state": "clean", "sites": 2 },
     "patched": { "state": "patched", "sites": 2 },
     "mixed": { "state": "mixed", "sites": 2 },

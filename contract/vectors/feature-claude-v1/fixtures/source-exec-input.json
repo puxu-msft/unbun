@@ -1,7 +1,6 @@
 {
   "format": "virtual-binary-v1",
-  "discovery_head_bytes": 32000000,
-  "discovery_tail_bytes": 32000000,
+  "discovery": "whole-file-anchor-census",
   "window_radius": 8000,
   "cases": [
     {
@@ -34,6 +33,18 @@
       "expected_state": "clean",
       "expected_sites": 1,
       "merged_discovery_ranges": [[0, 40000000]]
+    },
+    {
+      "id": "mid-file-blind-spot",
+      "size": 200000000,
+      "segments": [
+        { "offset": 1000, "ascii": "// @bun @bytecode" },
+        { "offset": 100000000, "ascii": "// @bun @bytecode" },
+        { "offset": 199000000, "ascii": "// @bun @bytecode" }
+      ],
+      "expected_state": "clean",
+      "expected_sites": 3,
+      "note": "中段站点：旧的首尾各 32MB discovery 会静默漏掉 100000000 处的标记，且不触发 fail-closed 回落。"
     },
     {
       "id": "states",

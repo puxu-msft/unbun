@@ -136,7 +136,7 @@ Feature:
 `claude-v1` 固定以下参数，避免两套实现对同一 binary 报出不同 `sites`：
 
 - 通用 feature 小窗半径为 8,000 bytes。
-- `source-exec` 的 candidate discovery 扫描文件首 32,000,000 bytes 与末 32,000,000 bytes，重叠时合并；对每个有效 `// @bun` tag 建小窗并汇总全部站点。
+- `source-exec` 的 candidate discovery 对**整个文件**做 `// @bun` 锚点 census，对每个有效 tag 建小窗并汇总全部站点，重叠时合并。（旧口径为「扫首 32,000,000 bytes 与末 32,000,000 bytes」，已于 2026-07-26 修订：中段标记会被静默漏掉，而 candidate 完整性检查只看「是否跨越 discovery 边界」、不看「是否存在从未扫过的区域」，故连 fail-closed 回落都不触发。）
 - `agent-model` 从尾向前查找全部有效 describe suffix，不能只保留最后一个站点。
 - `channels` 从尾向前跳过无关 register decoy，并分别定位 decision、feature flag、permissions 与 capability-strip 的全部有效站点。
 - windowed probe 输出的 `state`、`sites` 与结构化 detail codes 必须和 full detect 一致。若 candidate discovery 不能证明完整，允许回退 full detect，不允许返回较少站点的快速近似。
@@ -164,7 +164,7 @@ CLI 与 TUI 只负责：
 - 将所有受支持 Bun 标记从 `// @bun @bytecode` 等长替换为 `// @bun @source__`。
 - 可精确逆向。
 - 无依赖。
-- Bun 标记可能分布在文件首尾，探测不得只扫 bundle 尾部。
+- Bun 标记可能出现在文件的任意位置（实测既有 ~6% 处的，也有 ~90-98% 处的），探测不得只扫 bundle 尾部，也不得只扫首尾两端。
 
 ### 6.2 `agent-model`
 

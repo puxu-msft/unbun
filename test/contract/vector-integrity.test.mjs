@@ -30,6 +30,7 @@ const REQUIRED_COVERAGE = {
     'source-exec:first-tail-multi-tag',
     'source-exec:32mb-boundary',
     'source-exec:overlapping-windows',
+    'source-exec:mid-file-blind-spot',
     'source-exec:clean',
     'source-exec:patched',
     'source-exec:mixed',

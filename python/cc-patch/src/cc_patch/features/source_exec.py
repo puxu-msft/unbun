@@ -10,7 +10,6 @@ BUN_SOURCE_FALLBACK_MARKER = b"@source__"
 SOURCE_EXEC_CLEAN_SITE = b" " + BUN_BYTECODE_MARKER
 SOURCE_EXEC_PATCHED_SITE = b" " + BUN_SOURCE_FALLBACK_MARKER
 PROBE_WINDOW = 8_000
-PROBE_EDGE = 32_000_000
 
 
 def _locate_sites(data: bytes) -> list[int]:
@@ -72,35 +71,26 @@ class SourceExecFeature:
         return _status_from_substates(self.observe_substates(data))
 
     def probe_windows(self, view: bytes) -> list[tuple[int, int]] | None:
-        windows: list[tuple[int, int]] = []
-        ranges: list[tuple[int, int]] = []
-        for start, end in sorted(
-            ((0, min(len(view), PROBE_EDGE)), (max(0, len(view) - PROBE_EDGE), len(view)))
-        ):
-            if ranges and start <= ranges[-1][1]:
-                ranges[-1] = (ranges[-1][0], max(ranges[-1][1], end))
-            else:
-                ranges.append((start, end))
-        for start, end in ranges:
-            tag = start
-            while (tag := view.find(BUN_TAG_PREFIX, tag, end)) != -1:
-                lo = max(0, tag - PROBE_WINDOW)
-                hi = min(len(view), tag + len(BUN_TAG_PREFIX) + len(BUN_BYTECODE_MARKER) + PROBE_WINDOW)
-                if _locate_sites(bytes(view[lo:hi])):
-                    windows.append((lo, hi))
-                tag += 1
-        return windows or None
+        """全文件锚点 census：对每个有效 `// @bun` 命中开一个 ±8,000 的小窗。
 
-    def candidates_complete(
-        self, view: bytes, windows: list[tuple[int, int]]
-    ) -> bool:
-        if len(view) <= PROBE_EDGE * 2:
-            return True
-        head_end = PROBE_EDGE
-        tail_start = len(view) - PROBE_EDGE
-        return not any(
-            lo < head_end < hi or lo < tail_start < hi for lo, hi in windows
-        )
+        旧实现只扫首尾各 32,000,000 bytes，中段的标记会被**静默漏掉**——而
+        ``candidates_complete`` 只检查候选是否跨越 discovery 边界、不检查「有没有从未
+        扫过的区域」，所以连 fail-closed 回落都不会触发，直接违反「不允许返回较少站点
+        的快速近似」。改为全文件反查：``find`` 走 mmap 只触及页缓存，比回落整读再
+        逐字节解码便宜得多。
+        """
+        windows: list[tuple[int, int]] = []
+        tag = 0
+        while (tag := view.find(BUN_TAG_PREFIX, tag)) != -1:
+            lo = max(0, tag - PROBE_WINDOW)
+            hi = min(
+                len(view),
+                tag + len(BUN_TAG_PREFIX) + len(BUN_BYTECODE_MARKER) + PROBE_WINDOW,
+            )
+            if _locate_sites(bytes(view[lo:hi])):
+                windows.append((lo, hi))
+            tag += 1
+        return windows or None
 
     def probe_window(self, view: bytes) -> tuple[int, int] | None:
         """返回最后一个探测窗，兼容只需定位单个锚点的调用方。"""

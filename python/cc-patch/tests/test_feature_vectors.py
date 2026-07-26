@@ -68,6 +68,29 @@ def test_source_exec_virtual_vectors_match_full_and_windowed(case_id):
     assert [site.offset for site in full.substates] == expected["sites"]
 
 
+def test_source_exec_discovers_tags_in_the_middle_of_a_large_binary():
+    """覆盖盲区回归：discovery 曾只扫首尾各 32MB，中段的 `// @bun` 标记会被静默漏掉。
+
+    candidates_complete 只检查候选是否跨越边界、不检查「有没有没扫过的区域」，所以连
+    fail-closed 回落都不会触发，直接违反「不允许返回较少站点的快速近似」。
+    """
+    case = {
+        "size": 200_000_000,
+        "segments": [
+            {"offset": 1_000, "ascii": "// @bun @bytecode"},
+            {"offset": 100_000_000, "ascii": "// @bun @bytecode"},
+            {"offset": 199_000_000, "ascii": "// @bun @bytecode"},
+        ],
+    }
+    data = make_virtual_binary(case)
+
+    full = source_exec.FEATURE.detect(data)
+    windowed = probe.detect_features(data)["source-exec"]
+
+    assert len(full.substates) == 3
+    assert full == windowed
+
+
 def test_source_exec_state_vectors_and_replay_all_sites():
     inputs = load_vector("source-exec-input.json")
     expected = load_vector("source-exec-expected.json")["results"]

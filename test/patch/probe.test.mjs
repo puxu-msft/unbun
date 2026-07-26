@@ -152,6 +152,29 @@ describe('Claude windowed probe', () => {
     }
   })
 
+  test('discovers source-exec tags in the middle of a large binary', () => {
+    // 覆盖盲区回归：discovery 曾只扫首尾各 32MB，中段的 `// @bun` 标记会被静默漏掉——而
+    // candidatesComplete 只检查候选是否跨越边界、不检查「有没有没扫过的区域」，所以连
+    // fail-closed 回落都不会触发，直接违反「不允许返回较少站点的快速近似」。
+    const testCase = {
+      size: 200_000_000,
+      segments: [
+        { offset: 1000, ascii: '// @bun @bytecode' },
+        { offset: 100_000_000, ascii: '// @bun @bytecode' },
+        { offset: 199_000_000, ascii: '// @bun @bytecode' },
+      ],
+    }
+    const reader = sparseReader(testCase)
+    const result = probeClaudeBinary('/virtual/mid-file-claude', {
+      features: [claudeFeatureRegistry.get('source-exec')],
+      openReader: () => reader,
+      now: fixedClock([0, 1, 2, 3]),
+    })
+
+    expect(result.features['source-exec']).toEqual(fullStatus(claudeFeatureRegistry.get('source-exec'), virtualBytes(testCase)))
+    expect(result.features['source-exec'].sites).toBe(3)
+  })
+
   test('matches full detection for every sparse source-exec boundary vector', () => {
     const cases = sourceInput.cases.filter((entry) => entry.segments)
     for (const testCase of cases) {
@@ -221,13 +244,17 @@ describe('Claude windowed probe', () => {
       now: fixedClock([0, 1, 2, 3]),
     })
 
-    expect(reader.reads).toEqual([[0, 32_000_000], [218_000_000, 250_000_000]])
+    // census 分块扫描整个文件，但**只解码**锚点附近的小窗：真正要钉住的是交给
+    // detect_windows 的字节量有界，而不是 discovery 读了哪几段。
+    expect(reader.reads).not.toContainEqual([0, testCase.size])
     expect(detectedLengths).toHaveLength(2)
     expect(Math.max(...detectedLengths)).toBeLessThanOrEqual(16_018)
     expect(result.features['source-exec'].sites).toBe(2)
   })
 
-  test('falls back before slicing a source candidate that crosses a discovery boundary', () => {
+  test('detects a source tag sitting on the old 32MB discovery boundary without a full read', () => {
+    // 这条曾钉住「候选跨越 32MB discovery 边界 → 回落整读」。全文件 census 之后不再有
+    // discovery 边界可跨，该站点被直接命中；保留此用例是因为这个 offset 仍是历史上的回归点。
     const testCase = {
       size: 100_000_000,
       segments: [{ offset: 31_999_990, ascii: '// @bun @bytecode' }],
@@ -240,8 +267,9 @@ describe('Claude windowed probe', () => {
       now: fixedClock([0, 1, 2, 3]),
     })
 
-    expect(reader.reads).toEqual([[0, 32_000_000], [68_000_000, 100_000_000], [0, 100_000_000]])
+    expect(result.features['source-exec']).toEqual(fullStatus(claudeFeatureRegistry.get('source-exec'), virtualBytes(testCase)))
     expect(result.features['source-exec'].sites).toBe(1)
+    expect(reader.reads).not.toContainEqual([0, testCase.size])
   })
 
   test('falls back when a non-source candidate extends beyond its discovery cache', () => {
