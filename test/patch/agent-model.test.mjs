@@ -49,7 +49,11 @@ describe('agent-model feature', () => {
     expect(agentModelFeature.observe_substates(patched)).toEqual([
       { id: 'agent-model:schema:0', offset: 8, length: 39, receiver: 'S', state: 'patched' },
     ])
-    expect(agentModelFeature.detect_windows([{ offset: 1000, bytes: patched }])).toBeNull()
+    // 单站点窗口必须直接给出结论，且 offset 是绝对值（窗口 offset + 窗内 offset）。此前这里
+    // 断言返回 null——即靠回落 full detect 掩盖 windowed/full 的 substate id 分歧，代价是每次
+    // 探测整读整个二进制。分歧已在 probe.mjs 的序号归一化处修掉，守卫随之移除。
+    expect(agentModelFeature.detect_windows([{ offset: 1000, bytes: patched }]))
+      .toEqual({ state: 'patched', sites: [1008] })
   })
 
   test('rejects unknown variants and discovers every exact suffix', () => {
