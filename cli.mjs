@@ -70,6 +70,7 @@ export async function runExtract({ bin, outdir } = {}) {
   const stringsPath = join(outdir, 'strings-n6.txt')
   const fd = openSync(stringsPath, 'w')
   const child = spawn('strings', ['-a', '-n', '6', bin], { stdio: ['ignore', fd, 'inherit'] })
+  const stringsClosed = new Promise((resolve) => child.once('close', resolve))
   const stringsDone = new Promise((res, rej) => {
     child.on('close', (code) => (code === 0 ? res() : rej(new Error(`strings exit ${code}`))))
     child.on('error', rej) // spawn 失败（strings 不存在等）→ 传播，不吞
@@ -98,10 +99,11 @@ export async function runExtract({ bin, outdir } = {}) {
     await stringsDone
     console.error(`[extract] wrote ${stringsPath}`)
   } catch (err) {
-    try { child.kill() } catch { /* 已退出：kill 无操作 */ } // 别把 strings 子进程孤儿留在后台扫 257MB
-    throw err // 主错误照原样传播，不吞（never-swallow-errors）
+    try { child.kill() } catch { /* 已退出：kill 无操作 */ }
+    await stringsClosed
+    throw err // strings 已关闭后传播主错误，不遗留后台扫描进程
   } finally {
-    closeSync(fd) // 成败都关父侧 fd（child stdout 是其 dup，已随 await/kill 后不再写）
+    closeSync(fd) // 成败都在 child close 后关父侧 fd
   }
 
   const manifest = {
