@@ -52,10 +52,8 @@ function probeScript(name) {
 // extract 核心：纯读 bin → 权威切 app bundle → esbuild 美化 → 写盘四产物。
 // 返回 { outdir, manifest } 便于测试断言与后续子命令消费。stderr 打印进度，不污染 stdout。
 //
-// P3 并行提速：`strings` 是**外部子进程**（OS 进程），与 beautify（同步 CPU、阻塞 JS 事件循环 ~3s）无
-// 数据依赖。用 `spawn`（异步、无 shell 数组参数，保持现有无注入特性）**在 beautify 之前**启动 strings，
-// 让 OS 在 beautify 阻塞事件循环期间照样调度 strings 子进程 → 二者 CPU/IO 真并行；beautify 返回后再
-// `await` strings 完成。净耗时 ≈ max(beautify, strings) ≈ 3s，而非串行 ~4.9s（提速 ~36%）。
+// P3 并行提速：`strings` 是外部子进程（OS 进程），与异步 esbuild beautify 无数据依赖。
+// 用 `spawn`（异步、无 shell 数组参数，保持现有无注入特性）在 beautify 之前启动 strings，让两项工作并行；beautify 返回后再 await strings 完成。
 // runExtract 因此为 async，所有调用点（dispatch case 'extract' / 顶层入口链 / 测试）须 await（漏 await →
 // strings 可能未写完就断言 strings-n6.txt = 假绿/竞态）。strings 非零退出 / spawn error → reject 传播（fail-loud，不吞）。
 export async function runExtract({ bin, outdir } = {}) {
@@ -76,15 +74,16 @@ export async function runExtract({ bin, outdir } = {}) {
     child.on('close', (code) => (code === 0 ? res() : rej(new Error(`strings exit ${code}`))))
     child.on('error', rej) // spawn 失败（strings 不存在等）→ 传播，不吞
   })
+  // strings 可在异步 beautify 期间先失败；立即挂处理者防止 Bun 提前判成 unhandled rejection。
+  // 原 Promise 保持 rejected，后续 await stringsDone 仍按原错误 fail-loud。
+  stringsDone.catch(() => {})
   console.error(`[extract] spawned strings → ${stringsPath} (runs in parallel with beautify)`)
 
-  // beautify（同步阻塞事件循环 ~3s，此间 OS 后台并行跑 strings 子进程）+ 写盘 + await strings 全包进
-  // try：**任一同步步骤（beautify / writeFileSync）在 await 之前抛**（esbuild 崩、磁盘满 / EACCES）时，
-  // catch 也保证不遗留 strings 子进程 / fd、且 stringsDone 的迟到 reject 不逃逸成 unhandled rejection；
+  // 异步 beautify + 写盘 + await strings 全包进 try：任一步骤抛错时，catch 保证不遗留 strings 子进程 / fd；
   // finally 无论成败都关 fd（关早了会截断 strings 写，故必在 await/kill 之后）。fail-loud：主错误照原样 rethrow。
   let prettyLines
   try {
-    const pretty = beautify(app)
+    const pretty = await beautify(app)
 
     const appPath = join(outdir, 'app.js')
     writeFileSync(appPath, app)
@@ -99,9 +98,6 @@ export async function runExtract({ bin, outdir } = {}) {
     await stringsDone
     console.error(`[extract] wrote ${stringsPath}`)
   } catch (err) {
-    // beautify/write 在 await 前抛：stringsDone 可能仍 pending 或稍后 reject → 挂 noop catch 标记「已处理」，
-    // 避免 unhandled rejection 打崩进程 / bun:test runner（await stringsDone 若已 reject，此处冗余无害）。
-    stringsDone.catch(() => {})
     try { child.kill() } catch { /* 已退出：kill 无操作 */ } // 别把 strings 子进程孤儿留在后台扫 257MB
     throw err // 主错误照原样传播，不吞（never-swallow-errors）
   } finally {

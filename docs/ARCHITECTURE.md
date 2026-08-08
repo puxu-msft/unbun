@@ -33,7 +33,7 @@ Bun 运行时。`cli.mjs` 分发通用命令与 `cc` namespace；通用命令消
 | `lib/module-graph.mjs` | 定位 `.bun` 内真 trailer + 解码 `StandaloneModuleGraph` → blob 清单。`parseModuleGraph(bin, preRead?)` 收可选 `preRead`（上游 `readBinary` 已得的 **BinaryReader**）透传复用、免重复 mmap/pread。**Bun 格式知识的唯一定居点** | bun-binary |
 | `lib/extract.mjs` | 选入口 blob（权威 `isEntry` 指认 + 回落）→ app 源；best-effort version 解析。`versionFromBlobs(reader,blobs)` 复用同一 reader + 已解析 blobs 供 assets/layout 解 version（不重开 reader、不重读二进制） | bun-binary, module-graph |
 | `lib/naming.mjs` | 4 命令共享的默认 outdir 命名单一真相源：`outdirName(bin,version)` → `claude-code-<version‖basename>`；`uniqueAssetName(name,offset,used)` 用 offset tiebreaker 消歧同名 basename（防静默覆盖） | node:path |
-| `lib/beautify.mjs` | esbuild `transformSync` AST 重印 → `app.pretty.js` | 本地 esbuild dependency |
+| `lib/beautify.mjs` | esbuild 异步 `transform` AST 重印 → `app.pretty.js`；避开 Bun `worker_threads` 下同步 API 的 `Atomics.wait` 卡死路径 | 本地 esbuild dependency |
 | `lib/split.mjs` | acorn 下钻外层 IIFE → 遍历 body 顶层 var-decl → helper 签名动态识别 → 逐模块切片 + helper 集；每模块附内容 `hash`（源字节 sha256 前 16 hex）供 diff 精确身份 | acorn |
 | `lib/layout.mjs` | module-graph 精确边界 + ELF section → 五分类体积分账 + 人类可读表 | bun-binary, module-graph, extract（`versionFromBlobs`） |
 | `lib/diff.mjs` | 纯数据：两 split index 归一改名后结构 diff（两趟配对，借鉴 git rename detection）。内容指纹优先用每模块 `hash` 做精确身份，任一侧缺 hash 回落 `(kind,bytes)` 近似（向后兼容老 index） | 无（吃 index.json 数据） |
@@ -117,7 +117,7 @@ flowchart TD
 - **等长 loader-hook（TOC-safe）**：claude bundle 顶部有一行 77 字节纯注释锚（`// Claude Code is a Beta product …`）。把它**等长**覆盖成可执行 payload + 空格填充、行尾 `\n` 原位保留 → 文件 size 分毫不变 → Bun 尾部 TOC 偏移全不动 → 无需改 TOC，payload 在模块顶层、main 之前执行。payload 超锚点即拒（前置守卫）；每处校验其后紧跟 `\n`；打全部命中 site。
 - **子集 oracle（`embeddedFiles ⊆ static assets`）**：`Bun.embeddedFiles` 只含 `with {type:"file"}` 的嵌入件（2 个 `.node`），而静态 module-graph 还含 `cli.js` 本体、辅助 js、mermaid。故正确交叉验证是**真包含**而非 `===`（写 `===` 会误杀正确的静态解析器）。此 oracle 只验资产解码这一子集。
 - **round-trip oracle（extract→rebuild→run 无损）**：`rebuild` 用 `bun build --compile` 反向重打包 app.js；跑得起来 ⇒ app bundle 切对了（offset/length 都对）。这兜住 module-graph 长度 oracle 覆盖不到的缺口（中段非 JS/非 ELF blob 的 length 不足、blob 漏解）。纯 app.js round-trip 是契约内；连带外部 `.node` 原生依赖的 round-trip 属 gitignored smoke。
-- **CPU/IO 真并行提速（extract / split，fail-loud 不吞）**：`extract` 把 `strings`（外部子进程、~1.9s IO）用 `spawn` **在 beautify 之前**启动，让 OS 在 beautify 阻塞事件循环（~3s 同步 CPU）期间照样调度它 → 净耗 ≈ max(两者) 而非串行相加（E7）；`split` 6000+ 模块写盘从逐个同步 `writeFileSync` 改 `fs.promises.writeFile` + `Promise.all` 分批（每批 512，防撞 fd 上限 EMFILE）并发写（E6）。二者都令 `runExtract`/`runSplit` 变 async，所有调用点（dispatch / 入口链 / 测试）须 `await`（漏 await = strings 未写完就断言 = 假绿/竞态）；子进程非零退出 / 写失败 → reject 显式传播，绝不吞。
+- **CPU/IO 真并行提速（extract / split，fail-loud 不吞）**：`extract` 把 `strings`（外部子进程）用 `spawn` **在异步 beautify 之前**启动，让它与 esbuild `transform` 并行；异步 API 同时避开 Bun `worker_threads` 下 `transformSync` 卡在 `Atomics.wait` 的兼容性缺陷（E7）。`split` 6000+ 模块写盘从逐个同步 `writeFileSync` 改 `fs.promises.writeFile` + `Promise.all` 分批（每批 512，防撞 fd 上限 EMFILE）并发写（E6）。二者都令 `runExtract`/`runSplit` 为 async，所有调用点（dispatch / 入口链 / 测试）须 `await`（漏 await = 产物尚未写完就断言 = 假绿/竞态）；子进程非零退出 / esbuild 或写盘失败 → reject 显式传播，绝不吞。
 
 ## 安全边界
 
